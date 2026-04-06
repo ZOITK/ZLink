@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "protocol-gen"
+version = "0.1.0"
+description = "Protocol code generator for Go/Python/C#"
+requires-python = ">=3.11"
+dependencies = [
+    "msgpack>=1.0.0",
+    "PyYAML>=6.0",
+    "Jinja2>=3.0",
+]
+
+[project.scripts]
+protocol-gen = "src.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]

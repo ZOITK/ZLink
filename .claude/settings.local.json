@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make help:*)",
+      "Read(//Users/zoitceo/work/104.zoit/**)",
+      "Bash(make -f zo-socket-framework/Makefile server OUTPUT=test-server-go)",
+      "Bash(make server:*)",
+      "Bash(make client:*)",
+      "Bash(mv zoit_client_python/* .)",
+      "Bash(rmdir zoit_client_python)",
+      "Bash(go run:*)",
+      "Bash(cat /Users/zoitceo/work/104.zoit/zo-socket-framework/schemas/*.yaml)"
+    ]
+  }
+}

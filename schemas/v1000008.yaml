@@ -1,0 +1,158 @@
+metadata:
+  version: 1000009
+  categories: [system, auth, room, game, admin]
+  protocols: [tcp, udp, both]
+  types: [req, res, notify]
+
+# 전역 에러 코드 (헤더 Error 필드용 - 전송 레이어 수준)
+# 제네레이터에서 Err_ 접두사를 붙여 출력 (예: Err_None, Err_InvalidValue)
+global_errors:
+  - { name: None,         idx: 0, doc: "정상" }
+  - { name: InvalidValue, idx: 1, doc: "패킷 파싱 실패 / 값 오류" }
+  - { name: Unauthorized, idx: 2, doc: "인증 안 된 요청" }
+  - { name: Server,       idx: 3, doc: "서버 내부 오류" }
+
+definitions:
+  system:
+    packets:
+      - name: TCPHeartBit
+        idx: 1
+        proto: tcp
+        doc: "TCP 하트비트"
+        desc: "연결 생존 확인 및 서버 시간 동기화"
+        req: { fields: { ServerTime: float64 } }
+        res: { fields: { ServerTime: float64 } }
+      - name: UDPHeartBit
+        idx: 2
+        proto: udp
+        doc: "UDP 하트비트"
+        req: { fields: { Timestamp: int64 } }
+        res: { fields: { Timestamp: int64 } }
+
+  auth:
+    packets:
+      - name: Login
+        idx: 1
+        proto: tcp
+        doc: "로그인"
+        pair:
+          req: { fields: { LoginID: string } }
+          res: { fields: { UserIdx: uint32, StartTime: int64, Result: uint32 } }
+      - name: MapTotalUserCount
+        idx: 2
+        proto: tcp
+        doc: "맵 동접자 수"
+        pair:
+          req: { fields: { MapUids: "array(string)" } }
+          res: { fields: { Counts: "array(uint32)", Result: uint32 } }
+
+  room:
+    structs:
+      RoomJoinInfo:
+        doc: "라이더 참여 정보"
+        fields:
+          LoginID: string
+          UserIdx: uint32
+          Nick: string
+          Distance: float32
+          RiderIndex: uint32
+      RoomListInfo:
+        doc: "방 정보 요약"
+        fields:
+          RoomIdx: uint32
+          Title: string
+          RoomMaxUser: uint32
+          RoomUserCount: uint32
+      RoomCreateInfo:
+        doc: "방 생성 정보"
+        fields:
+          RoomMaxUser: uint32
+          Lap: uint32
+          Title: string
+          MapUid: string
+      RecvRoomInfo:
+        doc: "룸 상세 정보"
+        fields:
+          RoomIdx: uint32
+          Title: string
+          MapUid: string
+          HostUserIdx: uint32
+      RoomFinishInfo:
+        doc: "완주 기록"
+        fields:
+          LoginID: string
+          Nick: string
+          RiderIndex: uint32
+          FinishTime: int64
+
+    packets:
+      - name: List
+        idx: 1
+        proto: tcp
+        doc: "방 목록 조회"
+        pair:
+          req: { fields: { MapUid: string } }
+          res: { fields: { Rooms: "array(RoomListInfo)", Result: uint32 } }
+      - name: Create
+        idx: 2
+        proto: tcp
+        doc: "방 생성"
+        pair:
+          req: { fields: { CreateInfo: RoomCreateInfo, Riders: "array(RoomJoinInfo)" } }
+          res: { fields: { RoomIdx: uint32, Result: uint32 } }
+      - name: Join
+        idx: 3
+        proto: tcp
+        doc: "방 입장"
+        pair:
+          req: { fields: { RoomIdx: uint32, Riders: "array(RoomJoinInfo)" } }
+          res: { fields: { RoomInfo: RecvRoomInfo, UserIdx: uint32, OtherRiders: "array(RoomJoinInfo)", Result: uint32 } }
+      - name: RiderUpdate
+        idx: 4
+        proto: tcp
+        type: notify
+        doc: "라이더 갱신 알림"
+        fields: { Users: "array(RoomJoinInfo)" }
+      - name: ClientLeave
+        idx: 5
+        proto: tcp
+        type: notify
+        doc: "퇴장 알림"
+        fields: { LeaverUserIdx: uint32, HostUserIdx: uint32 }
+      - name: FinishInfoList
+        idx: 7
+        proto: tcp
+        doc: "완주자 기록 목록"
+        pair:
+          req: { fields: { RoomIdx: uint32 } }
+          res: { fields: { Finishes: "array(RoomFinishInfo)", Result: uint32 } }
+
+  game:
+    packets:
+      - name: Chat
+        idx: 1
+        proto: tcp
+        doc: "채팅"
+        pair:
+          req: { fields: { Message: string } }
+          res: { fields: { Result: uint32 } }
+      - name: ChatNotify
+        idx: 2
+        proto: tcp
+        type: notify
+        doc: "채팅 알림"
+        fields: { UserIdx: uint32, Message: string }
+      - name: RiderPosSync
+        idx: 3
+        proto: udp
+        type: notify
+        doc: "위치 동기화"
+        fields: { Timestamp: int64, Riders: "array(array(float32))" }
+
+  admin:
+    packets:
+      - name: AdminSet
+        idx: 1
+        proto: tcp
+        doc: "관리자 설정"
+        req: { fields: { Enabled: uint32 } }

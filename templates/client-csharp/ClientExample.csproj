@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
+    <StartupObject>SampleClient</StartupObject>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../engine/client-csharp/ZPP_Engine.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="MessagePack">
+      <HintPath>../../engine/client-csharp/Plugins/MessagePack.dll</HintPath>
+    </Reference>
+    <Reference Include="MessagePack.Annotations">
+      <HintPath>../../engine/client-csharp/Plugins/MessagePack.Annotations.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>
