@@ -1,5 +1,5 @@
 // 자동 생성된 프로토콜
-// 버전: 1000009
+// 버전: 1
 // 자동 생성됨 (zoit-protocol-gen)
 using System;
 using System.Collections.Generic;
@@ -14,7 +14,7 @@ namespace Zoit
     public static class Protocol
     {
         /// <summary>프로토콜 현재 버전</summary>
-        public const uint CurrentVersion = 1000009;
+        public const uint CurrentVersion = 1;
 
         // =====================================================================
         // --- 에러 코드 (Err_) ---
@@ -22,12 +22,14 @@ namespace Zoit
 
         /// <summary>정상</summary>
         public const uint Err_None = 0;
-        /// <summary>패킷 파싱 실패 / 값 오류</summary>
+        /// <summary>잘못된 값</summary>
         public const uint Err_InvalidValue = 1;
-        /// <summary>인증 안 된 요청</summary>
+        /// <summary>인증 필요</summary>
         public const uint Err_Unauthorized = 2;
-        /// <summary>서버 내부 오류</summary>
-        public const uint Err_Server = 3;
+        /// <summary>찾을 수 없음</summary>
+        public const uint Err_NotFound = 3;
+        /// <summary>서버 오류</summary>
+        public const uint Err_Server = 4;
 
         // =====================================================================
         // --- 커맨드 ID (Cmd_) ---
@@ -37,48 +39,44 @@ namespace Zoit
         public const uint Cmd_SystemTCPHeartBitReq = 11110001;
         /// <summary>TCP 하트비트</summary>
         public const uint Cmd_SystemTCPHeartBitRes = 11120001;
-        /// <summary>UDP 하트비트</summary>
-        public const uint Cmd_SystemUDPHeartBitReq = 11210002;
-        /// <summary>UDP 하트비트</summary>
-        public const uint Cmd_SystemUDPHeartBitRes = 11220002;
         /// <summary>로그인</summary>
         public const uint Cmd_AuthLoginReq = 12110001;
-        /// <summary>맵 동접자 수</summary>
-        public const uint Cmd_AuthMapTotalUserCountReq = 12110002;
         /// <summary>로그인</summary>
         public const uint Cmd_AuthLoginRes = 12120001;
-        /// <summary>맵 동접자 수</summary>
-        public const uint Cmd_AuthMapTotalUserCountRes = 12120002;
-        /// <summary>방 목록 조회</summary>
-        public const uint Cmd_RoomListReq = 13110001;
+        /// <summary>방 검색</summary>
+        public const uint Cmd_RoomSearchReq = 13110001;
         /// <summary>방 생성</summary>
         public const uint Cmd_RoomCreateReq = 13110002;
         /// <summary>방 입장</summary>
         public const uint Cmd_RoomJoinReq = 13110003;
-        /// <summary>완주자 기록 목록</summary>
-        public const uint Cmd_RoomFinishInfoListReq = 13110007;
-        /// <summary>방 목록 조회</summary>
-        public const uint Cmd_RoomListRes = 13120001;
+        /// <summary>방 검색</summary>
+        public const uint Cmd_RoomSearchRes = 13120001;
         /// <summary>방 생성</summary>
         public const uint Cmd_RoomCreateRes = 13120002;
         /// <summary>방 입장</summary>
         public const uint Cmd_RoomJoinRes = 13120003;
-        /// <summary>완주자 기록 목록</summary>
-        public const uint Cmd_RoomFinishInfoListRes = 13120007;
-        /// <summary>라이더 갱신 알림</summary>
-        public const uint Cmd_RoomRiderUpdateNotify = 13130004;
-        /// <summary>퇴장 알림</summary>
-        public const uint Cmd_RoomClientLeaveNotify = 13130005;
-        /// <summary>채팅</summary>
-        public const uint Cmd_GameChatReq = 14110001;
-        /// <summary>채팅</summary>
-        public const uint Cmd_GameChatRes = 14120001;
-        /// <summary>채팅 알림</summary>
-        public const uint Cmd_GameChatNotify = 14130002;
-        /// <summary>위치 동기화</summary>
-        public const uint Cmd_GameRiderPosSyncNotify = 14230003;
-        /// <summary>관리자 설정</summary>
-        public const uint Cmd_AdminAdminSetReq = 15110001;
+        /// <summary>플레이어 입장 알림</summary>
+        public const uint Cmd_RoomPlayerJoinNotify = 13130004;
+        /// <summary>게임 시작 알림</summary>
+        public const uint Cmd_RoomGameStartNotify = 13130005;
+        /// <summary>숫자 맞추기</summary>
+        public const uint Cmd_GameGuessReq = 14110001;
+        /// <summary>게임 승리</summary>
+        public const uint Cmd_GameWinReq = 14110003;
+        /// <summary>채팅 메시지 전송</summary>
+        public const uint Cmd_GameChatReq = 14110005;
+        /// <summary>숫자 맞추기</summary>
+        public const uint Cmd_GameGuessRes = 14120001;
+        /// <summary>게임 승리</summary>
+        public const uint Cmd_GameWinRes = 14120003;
+        /// <summary>채팅 메시지 전송</summary>
+        public const uint Cmd_GameChatRes = 14120005;
+        /// <summary>상대 숫자 맞추기 알림</summary>
+        public const uint Cmd_GameGuessNotify = 14130002;
+        /// <summary>게임 종료 알림</summary>
+        public const uint Cmd_GameWinNotify = 14130004;
+        /// <summary>채팅 메시지 수신</summary>
+        public const uint Cmd_GameChatNotify = 14130006;
 
         // =====================================================================
         // --- 중앙 집중형 디스패처 (Registration) ---
@@ -106,27 +104,25 @@ namespace Zoit
 
                 case Cmd_SystemTCPHeartBitReq: return Msg_SystemTCPHeartBitReq.Decode(body);
                 case Cmd_SystemTCPHeartBitRes: return Msg_SystemTCPHeartBitRes.Decode(body);
-                case Cmd_SystemUDPHeartBitReq: return Msg_SystemUDPHeartBitReq.Decode(body);
-                case Cmd_SystemUDPHeartBitRes: return Msg_SystemUDPHeartBitRes.Decode(body);
                 case Cmd_AuthLoginReq: return Msg_AuthLoginReq.Decode(body);
-                case Cmd_AuthMapTotalUserCountReq: return Msg_AuthMapTotalUserCountReq.Decode(body);
                 case Cmd_AuthLoginRes: return Msg_AuthLoginRes.Decode(body);
-                case Cmd_AuthMapTotalUserCountRes: return Msg_AuthMapTotalUserCountRes.Decode(body);
-                case Cmd_RoomListReq: return Msg_RoomListReq.Decode(body);
+                case Cmd_RoomSearchReq: return Msg_RoomSearchReq.Decode(body);
                 case Cmd_RoomCreateReq: return Msg_RoomCreateReq.Decode(body);
                 case Cmd_RoomJoinReq: return Msg_RoomJoinReq.Decode(body);
-                case Cmd_RoomFinishInfoListReq: return Msg_RoomFinishInfoListReq.Decode(body);
-                case Cmd_RoomListRes: return Msg_RoomListRes.Decode(body);
+                case Cmd_RoomSearchRes: return Msg_RoomSearchRes.Decode(body);
                 case Cmd_RoomCreateRes: return Msg_RoomCreateRes.Decode(body);
                 case Cmd_RoomJoinRes: return Msg_RoomJoinRes.Decode(body);
-                case Cmd_RoomFinishInfoListRes: return Msg_RoomFinishInfoListRes.Decode(body);
-                case Cmd_RoomRiderUpdateNotify: return Msg_RoomRiderUpdateNotify.Decode(body);
-                case Cmd_RoomClientLeaveNotify: return Msg_RoomClientLeaveNotify.Decode(body);
+                case Cmd_RoomPlayerJoinNotify: return Msg_RoomPlayerJoinNotify.Decode(body);
+                case Cmd_RoomGameStartNotify: return Msg_RoomGameStartNotify.Decode(body);
+                case Cmd_GameGuessReq: return Msg_GameGuessReq.Decode(body);
+                case Cmd_GameWinReq: return Msg_GameWinReq.Decode(body);
                 case Cmd_GameChatReq: return Msg_GameChatReq.Decode(body);
+                case Cmd_GameGuessRes: return Msg_GameGuessRes.Decode(body);
+                case Cmd_GameWinRes: return Msg_GameWinRes.Decode(body);
                 case Cmd_GameChatRes: return Msg_GameChatRes.Decode(body);
+                case Cmd_GameGuessNotify: return Msg_GameGuessNotify.Decode(body);
+                case Cmd_GameWinNotify: return Msg_GameWinNotify.Decode(body);
                 case Cmd_GameChatNotify: return Msg_GameChatNotify.Decode(body);
-                case Cmd_GameRiderPosSyncNotify: return Msg_GameRiderPosSyncNotify.Decode(body);
-                case Cmd_AdminAdminSetReq: return Msg_AdminAdminSetReq.Decode(body);
                 default: return null;
             }
         }
@@ -212,77 +208,26 @@ namespace Zoit
     // --- 데이터 구조체 및 패킷 정의 ---
     // =========================================================================
 
-    /// <summary>룸 상세 정보</summary>
+    /// <summary>방 정보</summary>
     [MessagePackObject]
-    public class Msg_RecvRoomInfo
+    public class Msg_RoomInfo
     {
-        [Key(0)] public uint RoomIdx { get; set; }
-        [Key(1)] public string Title { get; set; }
-        [Key(2)] public string MapUid { get; set; }
-        [Key(3)] public uint HostUserIdx { get; set; }
+        [Key(0)] public uint RoomID { get; set; }
+        [Key(1)] public string RoomName { get; set; }
+        [Key(2)] public uint HostPlayerID { get; set; }
+        [Key(3)] public string HostNickname { get; set; }
+        [Key(4)] public uint PlayerCount { get; set; }
+        [Key(5)] public uint Status { get; set; }
 
         public byte[] Encode() => MessagePackSerializer.Serialize(this);
-        public static Msg_RecvRoomInfo Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_RecvRoomInfo>(data);
-    }
-
-    /// <summary>방 생성 정보</summary>
-    [MessagePackObject]
-    public class Msg_RoomCreateInfo
-    {
-        [Key(0)] public uint RoomMaxUser { get; set; }
-        [Key(1)] public uint Lap { get; set; }
-        [Key(2)] public string Title { get; set; }
-        [Key(3)] public string MapUid { get; set; }
-
-        public byte[] Encode() => MessagePackSerializer.Serialize(this);
-        public static Msg_RoomCreateInfo Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_RoomCreateInfo>(data);
-    }
-
-    /// <summary>완주 기록</summary>
-    [MessagePackObject]
-    public class Msg_RoomFinishInfo
-    {
-        [Key(0)] public string LoginID { get; set; }
-        [Key(1)] public string Nick { get; set; }
-        [Key(2)] public uint RiderIndex { get; set; }
-        [Key(3)] public long FinishTime { get; set; }
-
-        public byte[] Encode() => MessagePackSerializer.Serialize(this);
-        public static Msg_RoomFinishInfo Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_RoomFinishInfo>(data);
-    }
-
-    /// <summary>라이더 참여 정보</summary>
-    [MessagePackObject]
-    public class Msg_RoomJoinInfo
-    {
-        [Key(0)] public string LoginID { get; set; }
-        [Key(1)] public uint UserIdx { get; set; }
-        [Key(2)] public string Nick { get; set; }
-        [Key(3)] public float Distance { get; set; }
-        [Key(4)] public uint RiderIndex { get; set; }
-
-        public byte[] Encode() => MessagePackSerializer.Serialize(this);
-        public static Msg_RoomJoinInfo Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_RoomJoinInfo>(data);
-    }
-
-    /// <summary>방 정보 요약</summary>
-    [MessagePackObject]
-    public class Msg_RoomListInfo
-    {
-        [Key(0)] public uint RoomIdx { get; set; }
-        [Key(1)] public string Title { get; set; }
-        [Key(2)] public uint RoomMaxUser { get; set; }
-        [Key(3)] public uint RoomUserCount { get; set; }
-
-        public byte[] Encode() => MessagePackSerializer.Serialize(this);
-        public static Msg_RoomListInfo Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_RoomListInfo>(data);
+        public static Msg_RoomInfo Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_RoomInfo>(data);
     }
 
     /// <summary>TCP 하트비트</summary>
     [MessagePackObject]
     public class Msg_SystemTCPHeartBitReq
     {
-        [Key(0)] public double ServerTime { get; set; }
+        [Key(0)] public long ServerTime { get; set; }
 
         public byte[] Encode() => MessagePackSerializer.Serialize(this);
         public static Msg_SystemTCPHeartBitReq Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_SystemTCPHeartBitReq>(data);
@@ -313,7 +258,7 @@ namespace Zoit
     [MessagePackObject]
     public class Msg_SystemTCPHeartBitRes
     {
-        [Key(0)] public double ServerTime { get; set; }
+        [Key(0)] public long ServerTime { get; set; }
 
         public byte[] Encode() => MessagePackSerializer.Serialize(this);
         public static Msg_SystemTCPHeartBitRes Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_SystemTCPHeartBitRes>(data);
@@ -340,73 +285,11 @@ namespace Zoit
         }
     }
 
-    /// <summary>UDP 하트비트</summary>
-    [MessagePackObject]
-    public class Msg_SystemUDPHeartBitReq
-    {
-        [Key(0)] public long Timestamp { get; set; }
-
-        public byte[] Encode() => MessagePackSerializer.Serialize(this);
-        public static Msg_SystemUDPHeartBitReq Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_SystemUDPHeartBitReq>(data);
-        public uint GetID() => Protocol.Cmd_SystemUDPHeartBitReq;
-
-        public byte[] BuildTCP(uint errorCode = 0)
-        {
-            var body = Encode();
-            var hdr = new Sys_PackHeader { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Error = errorCode };
-            var result = new byte[16 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 16);
-            Buffer.BlockCopy(body, 0, result, 16, body.Length);
-            return result;
-        }
-
-        public byte[] BuildUDP(uint sender)
-        {
-            var body = Encode();
-            var hdr = new Sys_PackHeaderUDP { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Sender = sender, Error = 0 };
-            var result = new byte[20 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 20);
-            Buffer.BlockCopy(body, 0, result, 20, body.Length);
-            return result;
-        }
-    }
-
-    /// <summary>UDP 하트비트</summary>
-    [MessagePackObject]
-    public class Msg_SystemUDPHeartBitRes
-    {
-        [Key(0)] public long Timestamp { get; set; }
-
-        public byte[] Encode() => MessagePackSerializer.Serialize(this);
-        public static Msg_SystemUDPHeartBitRes Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_SystemUDPHeartBitRes>(data);
-        public uint GetID() => Protocol.Cmd_SystemUDPHeartBitRes;
-
-        public byte[] BuildTCP(uint errorCode = 0)
-        {
-            var body = Encode();
-            var hdr = new Sys_PackHeader { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Error = errorCode };
-            var result = new byte[16 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 16);
-            Buffer.BlockCopy(body, 0, result, 16, body.Length);
-            return result;
-        }
-
-        public byte[] BuildUDP(uint sender)
-        {
-            var body = Encode();
-            var hdr = new Sys_PackHeaderUDP { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Sender = sender, Error = 0 };
-            var result = new byte[20 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 20);
-            Buffer.BlockCopy(body, 0, result, 20, body.Length);
-            return result;
-        }
-    }
-
     /// <summary>로그인</summary>
     [MessagePackObject]
     public class Msg_AuthLoginReq
     {
-        [Key(0)] public string LoginID { get; set; }
+        [Key(0)] public string Nickname { get; set; }
 
         public byte[] Encode() => MessagePackSerializer.Serialize(this);
         public static Msg_AuthLoginReq Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_AuthLoginReq>(data);
@@ -433,44 +316,12 @@ namespace Zoit
         }
     }
 
-    /// <summary>맵 동접자 수</summary>
-    [MessagePackObject]
-    public class Msg_AuthMapTotalUserCountReq
-    {
-        [Key(0)] public List<string> MapUids { get; set; }
-
-        public byte[] Encode() => MessagePackSerializer.Serialize(this);
-        public static Msg_AuthMapTotalUserCountReq Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_AuthMapTotalUserCountReq>(data);
-        public uint GetID() => Protocol.Cmd_AuthMapTotalUserCountReq;
-
-        public byte[] BuildTCP(uint errorCode = 0)
-        {
-            var body = Encode();
-            var hdr = new Sys_PackHeader { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Error = errorCode };
-            var result = new byte[16 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 16);
-            Buffer.BlockCopy(body, 0, result, 16, body.Length);
-            return result;
-        }
-
-        public byte[] BuildUDP(uint sender)
-        {
-            var body = Encode();
-            var hdr = new Sys_PackHeaderUDP { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Sender = sender, Error = 0 };
-            var result = new byte[20 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 20);
-            Buffer.BlockCopy(body, 0, result, 20, body.Length);
-            return result;
-        }
-    }
-
     /// <summary>로그인</summary>
     [MessagePackObject]
     public class Msg_AuthLoginRes
     {
-        [Key(0)] public uint UserIdx { get; set; }
-        [Key(1)] public long StartTime { get; set; }
-        [Key(2)] public uint Result { get; set; }
+        [Key(0)] public uint PlayerID { get; set; }
+        [Key(1)] public uint Result { get; set; }
 
         public byte[] Encode() => MessagePackSerializer.Serialize(this);
         public static Msg_AuthLoginRes Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_AuthLoginRes>(data);
@@ -497,47 +348,14 @@ namespace Zoit
         }
     }
 
-    /// <summary>맵 동접자 수</summary>
+    /// <summary>방 검색</summary>
     [MessagePackObject]
-    public class Msg_AuthMapTotalUserCountRes
+    public class Msg_RoomSearchReq
     {
-        [Key(0)] public List<uint> Counts { get; set; }
-        [Key(1)] public uint Result { get; set; }
 
         public byte[] Encode() => MessagePackSerializer.Serialize(this);
-        public static Msg_AuthMapTotalUserCountRes Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_AuthMapTotalUserCountRes>(data);
-        public uint GetID() => Protocol.Cmd_AuthMapTotalUserCountRes;
-
-        public byte[] BuildTCP(uint errorCode = 0)
-        {
-            var body = Encode();
-            var hdr = new Sys_PackHeader { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Error = errorCode };
-            var result = new byte[16 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 16);
-            Buffer.BlockCopy(body, 0, result, 16, body.Length);
-            return result;
-        }
-
-        public byte[] BuildUDP(uint sender)
-        {
-            var body = Encode();
-            var hdr = new Sys_PackHeaderUDP { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Sender = sender, Error = 0 };
-            var result = new byte[20 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 20);
-            Buffer.BlockCopy(body, 0, result, 20, body.Length);
-            return result;
-        }
-    }
-
-    /// <summary>방 목록 조회</summary>
-    [MessagePackObject]
-    public class Msg_RoomListReq
-    {
-        [Key(0)] public string MapUid { get; set; }
-
-        public byte[] Encode() => MessagePackSerializer.Serialize(this);
-        public static Msg_RoomListReq Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_RoomListReq>(data);
-        public uint GetID() => Protocol.Cmd_RoomListReq;
+        public static Msg_RoomSearchReq Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_RoomSearchReq>(data);
+        public uint GetID() => Protocol.Cmd_RoomSearchReq;
 
         public byte[] BuildTCP(uint errorCode = 0)
         {
@@ -564,8 +382,7 @@ namespace Zoit
     [MessagePackObject]
     public class Msg_RoomCreateReq
     {
-        [Key(0)] public Msg_RoomCreateInfo CreateInfo { get; set; }
-        [Key(1)] public List<Msg_RoomJoinInfo> Riders { get; set; }
+        [Key(0)] public string RoomName { get; set; }
 
         public byte[] Encode() => MessagePackSerializer.Serialize(this);
         public static Msg_RoomCreateReq Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_RoomCreateReq>(data);
@@ -596,8 +413,7 @@ namespace Zoit
     [MessagePackObject]
     public class Msg_RoomJoinReq
     {
-        [Key(0)] public uint RoomIdx { get; set; }
-        [Key(1)] public List<Msg_RoomJoinInfo> Riders { get; set; }
+        [Key(0)] public uint RoomID { get; set; }
 
         public byte[] Encode() => MessagePackSerializer.Serialize(this);
         public static Msg_RoomJoinReq Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_RoomJoinReq>(data);
@@ -624,47 +440,16 @@ namespace Zoit
         }
     }
 
-    /// <summary>완주자 기록 목록</summary>
+    /// <summary>방 검색</summary>
     [MessagePackObject]
-    public class Msg_RoomFinishInfoListReq
+    public class Msg_RoomSearchRes
     {
-        [Key(0)] public uint RoomIdx { get; set; }
-
-        public byte[] Encode() => MessagePackSerializer.Serialize(this);
-        public static Msg_RoomFinishInfoListReq Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_RoomFinishInfoListReq>(data);
-        public uint GetID() => Protocol.Cmd_RoomFinishInfoListReq;
-
-        public byte[] BuildTCP(uint errorCode = 0)
-        {
-            var body = Encode();
-            var hdr = new Sys_PackHeader { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Error = errorCode };
-            var result = new byte[16 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 16);
-            Buffer.BlockCopy(body, 0, result, 16, body.Length);
-            return result;
-        }
-
-        public byte[] BuildUDP(uint sender)
-        {
-            var body = Encode();
-            var hdr = new Sys_PackHeaderUDP { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Sender = sender, Error = 0 };
-            var result = new byte[20 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 20);
-            Buffer.BlockCopy(body, 0, result, 20, body.Length);
-            return result;
-        }
-    }
-
-    /// <summary>방 목록 조회</summary>
-    [MessagePackObject]
-    public class Msg_RoomListRes
-    {
-        [Key(0)] public List<Msg_RoomListInfo> Rooms { get; set; }
+        [Key(0)] public List<Msg_RoomInfo> Rooms { get; set; }
         [Key(1)] public uint Result { get; set; }
 
         public byte[] Encode() => MessagePackSerializer.Serialize(this);
-        public static Msg_RoomListRes Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_RoomListRes>(data);
-        public uint GetID() => Protocol.Cmd_RoomListRes;
+        public static Msg_RoomSearchRes Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_RoomSearchRes>(data);
+        public uint GetID() => Protocol.Cmd_RoomSearchRes;
 
         public byte[] BuildTCP(uint errorCode = 0)
         {
@@ -691,7 +476,7 @@ namespace Zoit
     [MessagePackObject]
     public class Msg_RoomCreateRes
     {
-        [Key(0)] public uint RoomIdx { get; set; }
+        [Key(0)] public uint RoomID { get; set; }
         [Key(1)] public uint Result { get; set; }
 
         public byte[] Encode() => MessagePackSerializer.Serialize(this);
@@ -723,9 +508,9 @@ namespace Zoit
     [MessagePackObject]
     public class Msg_RoomJoinRes
     {
-        [Key(0)] public Msg_RecvRoomInfo RoomInfo { get; set; }
-        [Key(1)] public uint UserIdx { get; set; }
-        [Key(2)] public List<Msg_RoomJoinInfo> OtherRiders { get; set; }
+        [Key(0)] public uint RoomID { get; set; }
+        [Key(1)] public uint OpponentPlayerID { get; set; }
+        [Key(2)] public string OpponentNickname { get; set; }
         [Key(3)] public uint Result { get; set; }
 
         public byte[] Encode() => MessagePackSerializer.Serialize(this);
@@ -753,16 +538,16 @@ namespace Zoit
         }
     }
 
-    /// <summary>완주자 기록 목록</summary>
+    /// <summary>플레이어 입장 알림</summary>
     [MessagePackObject]
-    public class Msg_RoomFinishInfoListRes
+    public class Msg_RoomPlayerJoinNotify
     {
-        [Key(0)] public List<Msg_RoomFinishInfo> Finishes { get; set; }
-        [Key(1)] public uint Result { get; set; }
+        [Key(0)] public uint PlayerID { get; set; }
+        [Key(1)] public string Nickname { get; set; }
 
         public byte[] Encode() => MessagePackSerializer.Serialize(this);
-        public static Msg_RoomFinishInfoListRes Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_RoomFinishInfoListRes>(data);
-        public uint GetID() => Protocol.Cmd_RoomFinishInfoListRes;
+        public static Msg_RoomPlayerJoinNotify Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_RoomPlayerJoinNotify>(data);
+        public uint GetID() => Protocol.Cmd_RoomPlayerJoinNotify;
 
         public byte[] BuildTCP(uint errorCode = 0)
         {
@@ -785,15 +570,16 @@ namespace Zoit
         }
     }
 
-    /// <summary>라이더 갱신 알림</summary>
+    /// <summary>게임 시작 알림</summary>
     [MessagePackObject]
-    public class Msg_RoomRiderUpdateNotify
+    public class Msg_RoomGameStartNotify
     {
-        [Key(0)] public List<Msg_RoomJoinInfo> Users { get; set; }
+        [Key(0)] public uint TargetNumber { get; set; }
+        [Key(1)] public uint MaxNumber { get; set; }
 
         public byte[] Encode() => MessagePackSerializer.Serialize(this);
-        public static Msg_RoomRiderUpdateNotify Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_RoomRiderUpdateNotify>(data);
-        public uint GetID() => Protocol.Cmd_RoomRiderUpdateNotify;
+        public static Msg_RoomGameStartNotify Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_RoomGameStartNotify>(data);
+        public uint GetID() => Protocol.Cmd_RoomGameStartNotify;
 
         public byte[] BuildTCP(uint errorCode = 0)
         {
@@ -816,16 +602,15 @@ namespace Zoit
         }
     }
 
-    /// <summary>퇴장 알림</summary>
+    /// <summary>숫자 맞추기</summary>
     [MessagePackObject]
-    public class Msg_RoomClientLeaveNotify
+    public class Msg_GameGuessReq
     {
-        [Key(0)] public uint LeaverUserIdx { get; set; }
-        [Key(1)] public uint HostUserIdx { get; set; }
+        [Key(0)] public uint GuessNumber { get; set; }
 
         public byte[] Encode() => MessagePackSerializer.Serialize(this);
-        public static Msg_RoomClientLeaveNotify Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_RoomClientLeaveNotify>(data);
-        public uint GetID() => Protocol.Cmd_RoomClientLeaveNotify;
+        public static Msg_GameGuessReq Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_GameGuessReq>(data);
+        public uint GetID() => Protocol.Cmd_GameGuessReq;
 
         public byte[] BuildTCP(uint errorCode = 0)
         {
@@ -848,7 +633,38 @@ namespace Zoit
         }
     }
 
-    /// <summary>채팅</summary>
+    /// <summary>게임 승리</summary>
+    [MessagePackObject]
+    public class Msg_GameWinReq
+    {
+        [Key(0)] public uint GuessNumber { get; set; }
+
+        public byte[] Encode() => MessagePackSerializer.Serialize(this);
+        public static Msg_GameWinReq Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_GameWinReq>(data);
+        public uint GetID() => Protocol.Cmd_GameWinReq;
+
+        public byte[] BuildTCP(uint errorCode = 0)
+        {
+            var body = Encode();
+            var hdr = new Sys_PackHeader { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Error = errorCode };
+            var result = new byte[16 + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 16);
+            Buffer.BlockCopy(body, 0, result, 16, body.Length);
+            return result;
+        }
+
+        public byte[] BuildUDP(uint sender)
+        {
+            var body = Encode();
+            var hdr = new Sys_PackHeaderUDP { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Sender = sender, Error = 0 };
+            var result = new byte[20 + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 20);
+            Buffer.BlockCopy(body, 0, result, 20, body.Length);
+            return result;
+        }
+    }
+
+    /// <summary>채팅 메시지 전송</summary>
     [MessagePackObject]
     public class Msg_GameChatReq
     {
@@ -879,7 +695,70 @@ namespace Zoit
         }
     }
 
-    /// <summary>채팅</summary>
+    /// <summary>숫자 맞추기</summary>
+    [MessagePackObject]
+    public class Msg_GameGuessRes
+    {
+        [Key(0)] public uint Result { get; set; }
+        [Key(1)] public uint Hint { get; set; }
+
+        public byte[] Encode() => MessagePackSerializer.Serialize(this);
+        public static Msg_GameGuessRes Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_GameGuessRes>(data);
+        public uint GetID() => Protocol.Cmd_GameGuessRes;
+
+        public byte[] BuildTCP(uint errorCode = 0)
+        {
+            var body = Encode();
+            var hdr = new Sys_PackHeader { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Error = errorCode };
+            var result = new byte[16 + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 16);
+            Buffer.BlockCopy(body, 0, result, 16, body.Length);
+            return result;
+        }
+
+        public byte[] BuildUDP(uint sender)
+        {
+            var body = Encode();
+            var hdr = new Sys_PackHeaderUDP { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Sender = sender, Error = 0 };
+            var result = new byte[20 + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 20);
+            Buffer.BlockCopy(body, 0, result, 20, body.Length);
+            return result;
+        }
+    }
+
+    /// <summary>게임 승리</summary>
+    [MessagePackObject]
+    public class Msg_GameWinRes
+    {
+        [Key(0)] public uint Result { get; set; }
+
+        public byte[] Encode() => MessagePackSerializer.Serialize(this);
+        public static Msg_GameWinRes Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_GameWinRes>(data);
+        public uint GetID() => Protocol.Cmd_GameWinRes;
+
+        public byte[] BuildTCP(uint errorCode = 0)
+        {
+            var body = Encode();
+            var hdr = new Sys_PackHeader { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Error = errorCode };
+            var result = new byte[16 + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 16);
+            Buffer.BlockCopy(body, 0, result, 16, body.Length);
+            return result;
+        }
+
+        public byte[] BuildUDP(uint sender)
+        {
+            var body = Encode();
+            var hdr = new Sys_PackHeaderUDP { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Sender = sender, Error = 0 };
+            var result = new byte[20 + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 20);
+            Buffer.BlockCopy(body, 0, result, 20, body.Length);
+            return result;
+        }
+    }
+
+    /// <summary>채팅 메시지 전송</summary>
     [MessagePackObject]
     public class Msg_GameChatRes
     {
@@ -910,79 +789,85 @@ namespace Zoit
         }
     }
 
-    /// <summary>채팅 알림</summary>
+    /// <summary>상대 숫자 맞추기 알림</summary>
+    [MessagePackObject]
+    public class Msg_GameGuessNotify
+    {
+        [Key(0)] public uint PlayerID { get; set; }
+        [Key(1)] public string Nickname { get; set; }
+        [Key(2)] public uint GuessNumber { get; set; }
+        [Key(3)] public uint Hint { get; set; }
+
+        public byte[] Encode() => MessagePackSerializer.Serialize(this);
+        public static Msg_GameGuessNotify Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_GameGuessNotify>(data);
+        public uint GetID() => Protocol.Cmd_GameGuessNotify;
+
+        public byte[] BuildTCP(uint errorCode = 0)
+        {
+            var body = Encode();
+            var hdr = new Sys_PackHeader { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Error = errorCode };
+            var result = new byte[16 + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 16);
+            Buffer.BlockCopy(body, 0, result, 16, body.Length);
+            return result;
+        }
+
+        public byte[] BuildUDP(uint sender)
+        {
+            var body = Encode();
+            var hdr = new Sys_PackHeaderUDP { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Sender = sender, Error = 0 };
+            var result = new byte[20 + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 20);
+            Buffer.BlockCopy(body, 0, result, 20, body.Length);
+            return result;
+        }
+    }
+
+    /// <summary>게임 종료 알림</summary>
+    [MessagePackObject]
+    public class Msg_GameWinNotify
+    {
+        [Key(0)] public uint WinnerPlayerID { get; set; }
+        [Key(1)] public string WinnerNickname { get; set; }
+        [Key(2)] public uint CorrectNumber { get; set; }
+        [Key(3)] public uint TryCount { get; set; }
+
+        public byte[] Encode() => MessagePackSerializer.Serialize(this);
+        public static Msg_GameWinNotify Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_GameWinNotify>(data);
+        public uint GetID() => Protocol.Cmd_GameWinNotify;
+
+        public byte[] BuildTCP(uint errorCode = 0)
+        {
+            var body = Encode();
+            var hdr = new Sys_PackHeader { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Error = errorCode };
+            var result = new byte[16 + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 16);
+            Buffer.BlockCopy(body, 0, result, 16, body.Length);
+            return result;
+        }
+
+        public byte[] BuildUDP(uint sender)
+        {
+            var body = Encode();
+            var hdr = new Sys_PackHeaderUDP { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Sender = sender, Error = 0 };
+            var result = new byte[20 + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 20);
+            Buffer.BlockCopy(body, 0, result, 20, body.Length);
+            return result;
+        }
+    }
+
+    /// <summary>채팅 메시지 수신</summary>
     [MessagePackObject]
     public class Msg_GameChatNotify
     {
-        [Key(0)] public uint UserIdx { get; set; }
-        [Key(1)] public string Message { get; set; }
+        [Key(0)] public uint PlayerID { get; set; }
+        [Key(1)] public string Nickname { get; set; }
+        [Key(2)] public string Message { get; set; }
 
         public byte[] Encode() => MessagePackSerializer.Serialize(this);
         public static Msg_GameChatNotify Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_GameChatNotify>(data);
         public uint GetID() => Protocol.Cmd_GameChatNotify;
-
-        public byte[] BuildTCP(uint errorCode = 0)
-        {
-            var body = Encode();
-            var hdr = new Sys_PackHeader { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Error = errorCode };
-            var result = new byte[16 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 16);
-            Buffer.BlockCopy(body, 0, result, 16, body.Length);
-            return result;
-        }
-
-        public byte[] BuildUDP(uint sender)
-        {
-            var body = Encode();
-            var hdr = new Sys_PackHeaderUDP { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Sender = sender, Error = 0 };
-            var result = new byte[20 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 20);
-            Buffer.BlockCopy(body, 0, result, 20, body.Length);
-            return result;
-        }
-    }
-
-    /// <summary>위치 동기화</summary>
-    [MessagePackObject]
-    public class Msg_GameRiderPosSyncNotify
-    {
-        [Key(0)] public long Timestamp { get; set; }
-        [Key(1)] public List<List<float>> Riders { get; set; }
-
-        public byte[] Encode() => MessagePackSerializer.Serialize(this);
-        public static Msg_GameRiderPosSyncNotify Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_GameRiderPosSyncNotify>(data);
-        public uint GetID() => Protocol.Cmd_GameRiderPosSyncNotify;
-
-        public byte[] BuildTCP(uint errorCode = 0)
-        {
-            var body = Encode();
-            var hdr = new Sys_PackHeader { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Error = errorCode };
-            var result = new byte[16 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 16);
-            Buffer.BlockCopy(body, 0, result, 16, body.Length);
-            return result;
-        }
-
-        public byte[] BuildUDP(uint sender)
-        {
-            var body = Encode();
-            var hdr = new Sys_PackHeaderUDP { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Sender = sender, Error = 0 };
-            var result = new byte[20 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 20);
-            Buffer.BlockCopy(body, 0, result, 20, body.Length);
-            return result;
-        }
-    }
-
-    /// <summary>관리자 설정</summary>
-    [MessagePackObject]
-    public class Msg_AdminAdminSetReq
-    {
-        [Key(0)] public uint Enabled { get; set; }
-
-        public byte[] Encode() => MessagePackSerializer.Serialize(this);
-        public static Msg_AdminAdminSetReq Decode(byte[] data) => MessagePackSerializer.Deserialize<Msg_AdminAdminSetReq>(data);
-        public uint GetID() => Protocol.Cmd_AdminAdminSetReq;
 
         public byte[] BuildTCP(uint errorCode = 0)
         {

@@ -1,0 +1,138 @@
+metadata:
+  version: 1
+  categories: [system, auth, room, game]
+  protocols: [tcp]
+  types: [req, res, notify]
+
+# 전역 에러 코드
+global_errors:
+  - { name: None,         idx: 0, doc: "정상" }
+  - { name: InvalidValue, idx: 1, doc: "잘못된 값" }
+  - { name: Unauthorized, idx: 2, doc: "인증 필요" }
+  - { name: NotFound,     idx: 3, doc: "찾을 수 없음" }
+  - { name: Server,       idx: 4, doc: "서버 오류" }
+
+definitions:
+  system:
+    packets:
+      - name: TCPHeartBit
+        idx: 1
+        proto: tcp
+        doc: "TCP 하트비트"
+        desc: "연결 생존 확인"
+        req: { fields: { ServerTime: int64 } }
+        res: { fields: { ServerTime: int64 } }
+
+  auth:
+    packets:
+      - name: Login
+        idx: 1
+        proto: tcp
+        doc: "로그인"
+        desc: "플레이어 닉네임으로 로그인"
+        pair:
+          req: { fields: { Nickname: string } }
+          res: { fields: { PlayerID: uint32, Result: uint32 } }
+
+  room:
+    structs:
+      RoomInfo:
+        doc: "방 정보"
+        fields:
+          RoomID: uint32
+          RoomName: string
+          HostPlayerID: uint32
+          HostNickname: string
+          PlayerCount: uint32
+          Status: uint32
+
+    packets:
+      - name: Search
+        idx: 1
+        proto: tcp
+        doc: "방 검색"
+        desc: "사용 가능한 모든 방 목록 조회"
+        pair:
+          req: { fields: {} }
+          res: { fields: { Rooms: "array(RoomInfo)", Result: uint32 } }
+
+      - name: Create
+        idx: 2
+        proto: tcp
+        doc: "방 생성"
+        desc: "새로운 게임 방 생성"
+        pair:
+          req: { fields: { RoomName: string } }
+          res: { fields: { RoomID: uint32, Result: uint32 } }
+
+      - name: Join
+        idx: 3
+        proto: tcp
+        doc: "방 입장"
+        desc: "다른 플레이어의 방 입장"
+        pair:
+          req: { fields: { RoomID: uint32 } }
+          res: { fields: { RoomID: uint32, OpponentPlayerID: uint32, OpponentNickname: string, Result: uint32 } }
+
+      - name: PlayerJoinNotify
+        idx: 4
+        proto: tcp
+        type: notify
+        doc: "플레이어 입장 알림"
+        fields: { PlayerID: uint32, Nickname: string }
+
+      - name: GameStartNotify
+        idx: 5
+        proto: tcp
+        type: notify
+        doc: "게임 시작 알림"
+        fields: { TargetNumber: uint32, MaxNumber: uint32 }
+
+  game:
+    packets:
+      - name: Guess
+        idx: 1
+        proto: tcp
+        doc: "숫자 맞추기"
+        desc: "1~100 사이의 숫자를 맞춤"
+        pair:
+          req: { fields: { GuessNumber: uint32 } }
+          res: { fields: { Result: uint32, Hint: uint32 } }
+
+      - name: GuessNotify
+        idx: 2
+        proto: tcp
+        type: notify
+        doc: "상대 숫자 맞추기 알림"
+        fields: { PlayerID: uint32, Nickname: string, GuessNumber: uint32, Hint: uint32 }
+
+      - name: Win
+        idx: 3
+        proto: tcp
+        doc: "게임 승리"
+        desc: "숫자를 맞춤 (게임 종료)"
+        pair:
+          req: { fields: { GuessNumber: uint32 } }
+          res: { fields: { Result: uint32 } }
+
+      - name: WinNotify
+        idx: 4
+        proto: tcp
+        type: notify
+        doc: "게임 종료 알림"
+        fields: { WinnerPlayerID: uint32, WinnerNickname: string, CorrectNumber: uint32, TryCount: uint32 }
+
+      - name: Chat
+        idx: 5
+        proto: tcp
+        doc: "채팅 메시지 전송"
+        pair:
+          req: { fields: { Message: string } }
+          res: { fields: { Result: uint32 } }
+
+      - name: ChatNotify
+        idx: 6
+        proto: tcp
+        type: notify
+        doc: "채팅 메시지 수신"
+        fields: { PlayerID: uint32, Nickname: string, Message: string }
