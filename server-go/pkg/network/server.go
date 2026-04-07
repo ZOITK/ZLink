@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"net"
 
-	"github.com/zoit/zo-socket-framework/engine/server-go/pkg/base"
-	"github.com/zoit/zo-socket-framework/engine/server-go/pkg/config"
+	"github.com/ZOITK/ZLink/engine/server-go/base"
+	"github.com/ZOITK/ZLink/engine/server-go/config"
 )
 
 // Server - 프레임워크 통합 서버 객체

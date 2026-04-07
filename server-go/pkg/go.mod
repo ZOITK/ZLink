@@ -1,3 +1,3 @@
-module github.com/zoit/zo-socket-framework/engine/server-go
+module github.com/ZOITK/ZLink/engine/server-go
 
 go 1.25.6

@@ -8,11 +8,10 @@ import (
 	"sync"
 	"syscall"
 
-	"{{PROJECT_NAME}}/protocol"
-
-	"github.com/ZOITK/ZLink/engine/server-go/pkg/config"
-	"github.com/ZOITK/ZLink/engine/server-go/pkg/logger"
-	"github.com/ZOITK/ZLink/engine/server-go/pkg/network"
+	"github.com/ZOITK/ZLink/examples/basic/protocol"
+	"github.com/ZOITK/ZLink/engine/server-go/config"
+	"github.com/ZOITK/ZLink/engine/server-go/logger"
+	"github.com/ZOITK/ZLink/engine/server-go/network"
 )
 
 // Player - 플레이어 정보

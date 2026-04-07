@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/zoit/zo-socket-framework/engine/server-go/pkg/base"
+	"github.com/ZOITK/ZLink/engine/server-go/base"
 )
 
 // UDPStats - UDP 통계

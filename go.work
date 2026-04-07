@@ -1,5 +1,7 @@
 go 1.25.6
 
 use (
-	./engine/server-go
+	./server-go/pkg
+	./server-go/examples/basic
+	./server-go/examples/game
 )

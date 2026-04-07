@@ -11,11 +11,10 @@ import (
 	"syscall"
 	"time"
 
-	"{{PROJECT_NAME}}/protocol"
-
-	"github.com/ZOITK/ZLink/engine/server-go/pkg/config"
-	"github.com/ZOITK/ZLink/engine/server-go/pkg/logger"
-	"github.com/ZOITK/ZLink/engine/server-go/pkg/network"
+	"github.com/ZOITK/ZLink/examples/game/protocol"
+	"github.com/ZOITK/ZLink/engine/server-go/config"
+	"github.com/ZOITK/ZLink/engine/server-go/logger"
+	"github.com/ZOITK/ZLink/engine/server-go/network"
 )
 
 // 플레이어 상태 상수

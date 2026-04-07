@@ -9,7 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/zoit/zo-socket-framework/engine/server-go/pkg/base"
+	"github.com/ZOITK/ZLink/engine/server-go/base"
 )
 
 // Session - 클라이언트 연결 세션 (Infrastructure SDK)

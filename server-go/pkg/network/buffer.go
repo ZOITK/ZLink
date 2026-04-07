@@ -3,7 +3,7 @@ package network
 
 import (
 	"sync"
-	"github.com/zoit/zo-socket-framework/engine/server-go/pkg/base"
+	"github.com/ZOITK/ZLink/engine/server-go/base"
 )
 
 // BufferPool - 바이트 슬라이스 재사용을 위한 풀
