@@ -75,25 +75,30 @@ gen: check-uv
 # Go 서버 프로젝트 생성
 server: check-python
 	@if [ -z "$(OUTPUT)" ]; then \
-		echo "[ERROR] 사용법: make server OUTPUT=<output-path>"; \
+		echo "[ERROR] 사용법: make server OUTPUT=<output-path> [ENGINE_VERSION=...] [ENGINE_LOCAL=...]"; \
 		echo "  예: make server OUTPUT=../zo-moduta-server-go"; \
-		echo "  예: make server OUTPUT=./zo-moduta-server-go"; \
+		echo "  예: make server OUTPUT=../zo-moduta-server-go ENGINE_VERSION=v0.2.0"; \
+		echo "  예: make server OUTPUT=../zo-moduta-server-go ENGINE_LOCAL=./engine/server-go"; \
 		exit 1; \
 	fi
 	@echo "[Makefile] Go 서버 프로젝트 생성..."
-	@$(PYTHON) $(SCRIPTS_DIR)/project_generator.py server $(OUTPUT)
+	@$(PYTHON) $(SCRIPTS_DIR)/project_generator.py server $(OUTPUT) \
+		--engine-version "$(ENGINE_VERSION)" \
+		--engine-local "$(ENGINE_LOCAL)"
 
 # 클라이언트 프로젝트 생성
 client: check-python
 	@if [ -z "$(LANG)" ] || [ -z "$(OUTPUT)" ]; then \
-		echo "[ERROR] 사용법: make client LANG=<language> OUTPUT=<output-path>"; \
+		echo "[ERROR] 사용법: make client LANG=<language> OUTPUT=<output-path> [ENGINE_VERSION=...] [ENGINE_LOCAL=...]"; \
 		echo "  지원 언어: python, csharp"; \
 		echo "  예: make client LANG=python OUTPUT=../zo-moduta-client-python"; \
 		echo "  예: make client LANG=csharp OUTPUT=../zo-moduta-client-unity"; \
 		exit 1; \
 	fi
 	@echo "[Makefile] $(LANG) 클라이언트 프로젝트 생성..."
-	@$(PYTHON) $(SCRIPTS_DIR)/project_generator.py client $(LANG) $(OUTPUT)
+	@$(PYTHON) $(SCRIPTS_DIR)/project_generator.py client $(LANG) $(OUTPUT) \
+		--engine-version "$(ENGINE_VERSION)" \
+		--engine-local "$(ENGINE_LOCAL)"
 
 # 도움말
 help:

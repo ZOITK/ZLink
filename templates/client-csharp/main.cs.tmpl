@@ -1,0 +1,39 @@
+using System;
+using System.Threading.Tasks;
+using Zoit;
+using Zoit.Network;
+using Zoit.Logger;
+
+public class SampleClient
+{
+    public static async Task Main(string[] args)
+    {
+        ClientLogger.Info("C# 클라이언트 시작");
+
+        // TCP 클라이언트 초기화
+        var client = new TcpClient();
+
+        // 프로토콜과 핸들러 바인딩
+        Protocol.Register(client, OnRecvPacket);
+
+        // 서버 연결
+        if (!await client.ConnectAsync("127.0.0.1", 8080))
+        {
+            return;
+        }
+
+        ClientLogger.Info("서버에 연결되었습니다.");
+
+        // TODO: 패킷 송수신 로직 구현
+
+        await client.Close();
+    }
+
+    /// <summary>
+    /// 패킷 수신 핸들러
+    /// </summary>
+    private static void OnRecvPacket(object client, object msg)
+    {
+        // TODO: 메시지 처리 로직
+    }
+}

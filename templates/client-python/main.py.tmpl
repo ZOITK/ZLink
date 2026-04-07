@@ -1,0 +1,41 @@
+import asyncio
+import time
+from zoit_socket_client.network.tcp_client import AsyncTcpClient
+from zoit_socket_client.logger.logger import logger
+import protocol.Protocol as protocol
+
+
+async def OnRecvPacket(Client, Msg):
+    """
+    패킷 수신 핸들러
+    """
+    if isinstance(Msg, protocol.Msg_AuthLoginRes):
+        logger.info(f"[Handler] 로그인 응답 수신: UserIdx={Msg.UserIdx}, Result={Msg.Result}")
+
+    elif isinstance(Msg, protocol.Msg_SystemTCPHeartBitRes):
+        logger.debug(f"[Handler] 하트비트 응답 수신: {Msg.ServerTime}")
+
+
+async def main():
+    logger.info("Python 클라이언트 시작")
+
+    # TCP 클라이언트 초기화
+    client = AsyncTcpClient(Host="127.0.0.1", Port=8080)
+
+    # 프로토콜과 핸들러 바인딩
+    protocol.Register(client, OnRecvPacket)
+
+    # 서버 연결
+    if not await client.Connect():
+        return
+
+    # TODO: 패킷 송수신 로직 구현
+
+    await client.Close()
+
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass

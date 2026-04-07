@@ -9,7 +9,21 @@
       "Bash(mv zoit_client_python/* .)",
       "Bash(rmdir zoit_client_python)",
       "Bash(go run:*)",
-      "Bash(cat /Users/zoitceo/work/104.zoit/zo-socket-framework/schemas/*.yaml)"
+      "Bash(cat /Users/zoitceo/work/104.zoit/zo-socket-framework/schemas/*.yaml)",
+      "Bash(mkdir -p src/zoit_socket_client)",
+      "Bash(mv logger:*)",
+      "Bash(touch src/zoit_socket_client/__init__.py)",
+      "Bash(mkdir -p logger network protocol)",
+      "Bash(mv Logger/ClientLogger.cs logger/client_logger.cs)",
+      "Bash(mv Network/NetworkPacket.cs network/network_packet.cs)",
+      "Bash(mv Network/TcpClient.cs network/tcp_client.cs)",
+      "Bash(mv Network/UdpClient.cs network/udp_client.cs)",
+      "Bash(rm:*)",
+      "Bash(git checkout:*)",
+      "Bash(gh auth:*)",
+      "Bash(gh repo:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
