@@ -2,19 +2,17 @@
 
 .PHONY: build run help
 
-# 기본 타겟
+# 빌드
 build:
 	@echo "🔨 Building server examples..."
-	@cd cmd/basic && go build -o server_bin main.go && cd ../..
-	@cd cmd/game && go build -o server_bin main.go && cd ../..
-	@echo "✅ Build complete: cmd/basic/server_bin, cmd/game/server_bin"
+	@cd cmd/basic && go build -o server_bin main.go && echo "✅ cmd/basic/server_bin" && cd ../..
+	@cd cmd/game && go build -o server_bin main.go && echo "✅ cmd/game/server_bin" && cd ../..
 
+# 실행 (기본값: basic)
 run:
-	@if [ -z "$(EXAMPLE)" ]; then \
-		EXAMPLE=basic; \
-	fi; \
-	echo "🚀 Running server: $(EXAMPLE)"; \
-	cd cmd/$(EXAMPLE) && go run main.go
+	@example=$${EXAMPLE:-basic}; \
+	echo "🚀 Running server: $$example"; \
+	cd cmd/$$example && go run main.go
 
 help:
 	@echo "ZLink Server - 사용 가능한 명령어"
@@ -30,12 +28,12 @@ help:
 	@echo "  make help               이 메시지 출력"
 	@echo ""
 	@echo "📝 사용 예시:"
-	@echo "  # 프로토콜 생성 (먼저 수행)"
+	@echo "  # 1. 프로토콜 생성"
 	@echo "  cd ../generator && make gen"
 	@echo ""
-	@echo "  # 서버 빌드"
+	@echo "  # 2. 서버 빌드"
 	@echo "  make build"
 	@echo ""
-	@echo "  # 서버 실행"
+	@echo "  # 3. 서버 실행"
 	@echo "  make run                # basic 서버"
 	@echo "  make run EXAMPLE=game   # game 서버"
