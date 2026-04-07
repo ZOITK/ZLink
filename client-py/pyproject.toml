@@ -10,4 +10,4 @@ dependencies = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/zlink"]
+packages = ["zlink"]
