@@ -7,8 +7,9 @@ import protocol.Protocol as protocol
 
 # 게임 클라이언트 상태 관리
 class GameClient:
-    def __init__(self, nickname: str):
+    def __init__(self, nickname: str, is_multiplayer: bool = True):
         self.nickname = nickname
+        self.is_multiplayer = is_multiplayer
         self.player_id = None
         self.room_id = None
         self.opponent_id = None
@@ -36,8 +37,9 @@ class GameClient:
     async def create_room(self, client):
         """새 방 생성"""
         room_name = f"{self.nickname}의 게임방"
-        logger.info(f"[Game] 방 생성: {room_name}")
-        req = protocol.Msg_RoomCreateReq(RoomName=room_name)
+        mode = "멀티플레이" if self.is_multiplayer else "싱글플레이"
+        logger.info(f"[Game] 방 생성: {room_name} ({mode})")
+        req = protocol.Msg_RoomCreateReq(RoomName=room_name, IsMultiplayer=1 if self.is_multiplayer else 0)
         await client.SendMessage(req)
 
     async def join_room(self, client, room_id):
@@ -253,10 +255,12 @@ async def main():
     client = AsyncTcpClient(Host="127.0.0.1", Port=8080)
     protocol.Register(client, OnRecvPacket)
 
-    # 게임 클라이언트 생성 (여러 플레이어 시뮬레이션 가능)
+    # 게임 클라이언트 생성
     import sys
     nickname = sys.argv[1] if len(sys.argv) > 1 else "Player1"
-    game_client = GameClient(nickname)
+    # --single 플래그로 싱글플레이 모드 선택 가능
+    is_multiplayer = "--single" not in sys.argv
+    game_client = GameClient(nickname, is_multiplayer=is_multiplayer)
 
     # 서버 연결
     logger.info(f"[Network] 서버 연결 중... (127.0.0.1:8080)")

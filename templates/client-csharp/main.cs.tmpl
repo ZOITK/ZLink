@@ -22,6 +22,7 @@ public class GameClient
     private uint low = 1;
     private uint high = 100;
     private string nickname = "CSPlayer";
+    private bool isMultiplayer = true;
 
     public static async Task Main(string[] args)
     {
@@ -29,9 +30,11 @@ public class GameClient
 
         // 별도 닉네임 지정 가능
         string nickname = args.Length > 0 ? args[0] : "CSPlayer";
+        // --single 플래그로 싱글플레이 모드 선택 가능
+        bool isMultiplayer = !System.Linq.Enumerable.Contains(args, "--single");
 
         // 게임 클라이언트 생성
-        var gameClient = new GameClient { nickname = nickname };
+        var gameClient = new GameClient { nickname = nickname, isMultiplayer = isMultiplayer };
 
         // TCP 클라이언트 초기화
         var client = new TcpClient();
@@ -96,8 +99,13 @@ public class GameClient
     private async Task CreateRoom(TcpClient client)
     {
         string roomName = $"{nickname}의 게임방";
-        ClientLogger.Info($"[Game] 방 생성: {roomName}");
-        var req = new Msg_RoomCreateReq { RoomName = roomName };
+        string mode = isMultiplayer ? "멀티플레이" : "싱글플레이";
+        ClientLogger.Info($"[Game] 방 생성: {roomName} ({mode})");
+        var req = new Msg_RoomCreateReq
+        {
+            RoomName = roomName,
+            IsMultiplayer = (uint)(isMultiplayer ? 1 : 0)
+        };
         await client.SendMessageAsync(req);
     }
 

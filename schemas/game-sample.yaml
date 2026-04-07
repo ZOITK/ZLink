@@ -1,5 +1,5 @@
 metadata:
-  version: 1
+  version: 2
   categories: [system, auth, room, game]
   protocols: [tcp]
   types: [req, res, notify]
@@ -45,6 +45,7 @@ definitions:
           HostNickname: string
           PlayerCount: uint32
           Status: uint32
+          IsMultiplayer: uint32
 
     packets:
       - name: Search
@@ -60,9 +61,9 @@ definitions:
         idx: 2
         proto: tcp
         doc: "방 생성"
-        desc: "새로운 게임 방 생성"
+        desc: "새로운 게임 방 생성 (싱글/멀티플레이)"
         pair:
-          req: { fields: { RoomName: string } }
+          req: { fields: { RoomName: string, IsMultiplayer: uint32 } }
           res: { fields: { RoomID: uint32, Result: uint32 } }
 
       - name: Join

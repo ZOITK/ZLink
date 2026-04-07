@@ -1,5 +1,5 @@
 // Package protocol - 자동 생성된 프로토콜
-// 버전: 1
+// 버전: 2
 // 자동 생성됨 (zoit-protocol-gen)
 
 package protocol
@@ -14,7 +14,7 @@ import (
 // =========================================================================
 // --- 변수 및 상수 ---
 // =========================================================================
-const CurrentVersion = 1
+const CurrentVersion = 2
 
 type ErrorCode uint32
 
@@ -64,6 +64,7 @@ type Msg_RoomInfo struct {
 	HostNickname string `msgpack:"HostNickname"`
 	PlayerCount uint32 `msgpack:"PlayerCount"`
 	Status uint32 `msgpack:"Status"`
+	IsMultiplayer uint32 `msgpack:"IsMultiplayer"`
 }
 // Msg_SystemTCPHeartBitReq - TCP 하트비트
 type Msg_SystemTCPHeartBitReq struct {
@@ -94,6 +95,7 @@ type Msg_RoomSearchReq struct {
 type Msg_RoomCreateReq struct {
 	_msgpack struct{} `msgpack:",as_array"` // 데이터 압축 전송용
 	RoomName string `msgpack:"RoomName"`
+	IsMultiplayer uint32 `msgpack:"IsMultiplayer"`
 }
 // Msg_RoomJoinReq - 방 입장
 type Msg_RoomJoinReq struct {

@@ -1,5 +1,5 @@
 # 자동 생성된 프로토콜
-# 버전: 1
+# 버전: 2
 # 자동 생성됨 (zoit-protocol-gen)
 
 import struct
@@ -11,7 +11,7 @@ from typing import List, Optional, Any, Union, Dict, Type, Callable
 # =============================================================================
 # --- 변수 및 상수 ---
 # =============================================================================
-CURRENT_VERSION = 1  # 프로토콜 현재 버전
+CURRENT_VERSION = 2  # 프로토콜 현재 버전
 HEADER_SIZE = 16      # TCP 헤더 크기
 HEADER_UDP_SIZE = 20  # UDP 헤더 크기
 
@@ -146,6 +146,7 @@ class Msg_RoomInfo(msgspec.Struct, omit_defaults=True, forbid_unknown_fields=Fal
     HostNickname: Optional[str] = None
     PlayerCount: Optional[int] = None
     Status: Optional[int] = None
+    IsMultiplayer: Optional[int] = None
 
     def Encode(self) -> bytes: return msgspec.msgpack.encode(self)
     @classmethod
@@ -245,6 +246,7 @@ class Msg_RoomCreateReq(msgspec.Struct, omit_defaults=True, array_like=True):
     """방 생성"""
     ID = Cmd_RoomCreateReq
     RoomName: Optional[str] = None
+    IsMultiplayer: Optional[int] = None
 
     def Encode(self) -> bytes: return msgspec.msgpack.encode(self)
     @classmethod

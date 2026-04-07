@@ -52,6 +52,7 @@ type Game struct {
 	PlayersSlice  []*Player
 	CreatedAt     time.Time
 	HostPlayerID  uint32
+	IsMultiplayer uint32 // 0: 싱글플레이, 1: 멀티플레이
 }
 
 // GameServer - 게임 서버 전체 상태 관리
@@ -187,17 +188,18 @@ func handleRoomSearch(s protocol.ISession) {
 		return
 	}
 
-	// 사용 가능한 방 조회
+	// 사용 가능한 방 조회 (멀티플레이만 검색)
 	var availableRooms []*protocol.RoomInfo
 	for _, game := range gameServer.Rooms {
-		if game.Status == GameStateWaiting && len(game.Players) == 1 {
+		if game.IsMultiplayer == 1 && game.Status == GameStateWaiting && len(game.Players) == 1 {
 			availableRooms = append(availableRooms, &protocol.RoomInfo{
-				RoomID:       game.RoomID,
-				RoomName:     game.RoomName,
-				HostPlayerID: game.HostPlayerID,
-				HostNickname: gameServer.Players[game.HostPlayerID].Nickname,
-				PlayerCount:  uint32(len(game.Players)),
-				Status:       uint32(game.Status),
+				RoomID:        game.RoomID,
+				RoomName:      game.RoomName,
+				HostPlayerID:  game.HostPlayerID,
+				HostNickname:  gameServer.Players[game.HostPlayerID].Nickname,
+				PlayerCount:   uint32(len(game.Players)),
+				Status:        uint32(game.Status),
+				IsMultiplayer: game.IsMultiplayer,
 			})
 		}
 	}
@@ -233,23 +235,42 @@ func handleRoomCreate(s protocol.ISession, req *protocol.Msg_RoomCreateReq) {
 	gameServer.nextRoomID++
 
 	game := &Game{
-		RoomID:       roomID,
-		RoomName:     req.RoomName,
-		Status:       GameStateWaiting,
-		Players:      make(map[uint32]*Player),
-		PlayersSlice: make([]*Player, 0),
-		CreatedAt:    time.Now(),
-		HostPlayerID: player.PlayerID,
+		RoomID:        roomID,
+		RoomName:      req.RoomName,
+		Status:        GameStateWaiting,
+		Players:       make(map[uint32]*Player),
+		PlayersSlice:  make([]*Player, 0),
+		CreatedAt:     time.Now(),
+		HostPlayerID:  player.PlayerID,
+		IsMultiplayer: req.IsMultiplayer,
 	}
 
 	player.RoomID = roomID
-	player.State = PlayerStateSearching
+	player.State = PlayerStateInGame
 	game.Players[player.PlayerID] = player
 	game.PlayersSlice = append(game.PlayersSlice, player)
 
-	gameServer.Rooms[roomID] = game
+	// 싱글플레이면 바로 게임 시작, 멀티플레이면 대기
+	if req.IsMultiplayer == 0 {
+		// 싱글플레이: 게임 즉시 시작
+		game.Status = GameStateInProgress
+		game.TargetNumber = uint32(rand.Intn(100) + 1)
+		slog.Info("[RoomCreate] 싱글플레이 방 생성 및 게임 시작", "roomID", roomID, "hostID", player.PlayerID, "targetNumber", game.TargetNumber)
 
-	slog.Info("[RoomCreate] 방 생성 완료", "roomID", roomID, "hostID", player.PlayerID, "roomName", req.RoomName)
+		// 게임 시작 알림 전송
+		notifyMsg := &protocol.Msg_GameStartNotify{
+			TargetNumber: game.TargetNumber,
+			MaxNumber:    100,
+		}
+		_ = player.Session.SendRaw(notifyMsg.BuildTCP(protocol.Err_None))
+	} else {
+		// 멀티플레이: 다른 플레이어 대기
+		game.Status = GameStateWaiting
+		player.State = PlayerStateSearching
+		slog.Info("[RoomCreate] 멀티플레이 방 생성 완료", "roomID", roomID, "hostID", player.PlayerID, "roomName", req.RoomName)
+	}
+
+	gameServer.Rooms[roomID] = game
 
 	res := &protocol.Msg_RoomCreateRes{
 		RoomID: roomID,
@@ -278,7 +299,7 @@ func handleRoomJoin(s protocol.ISession, req *protocol.Msg_RoomJoinReq) {
 
 	// 방 찾기
 	game, exists := gameServer.Rooms[req.RoomID]
-	if !exists || game.Status != GameStateWaiting || len(game.Players) != 1 {
+	if !exists || game.Status != GameStateWaiting || len(game.Players) != 1 || game.IsMultiplayer != 1 {
 		res := &protocol.Msg_RoomJoinRes{
 			RoomID: req.RoomID,
 			Result: 3, // NotFound
