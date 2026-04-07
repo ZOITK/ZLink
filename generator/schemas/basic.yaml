@@ -4,6 +4,22 @@ metadata:
   protocols: [tcp]
   types: [req, res, notify]
 
+# 패킷 헤더 정의
+header:
+  tcp:
+    fields:
+      Version: uint32
+      Command: uint32
+      Length:  uint32
+      Error:   uint32
+  udp:
+    fields:
+      Version: uint32
+      Command: uint32
+      Length:  uint32
+      Sender:  uint32
+      Error:   uint32
+
 # 전역 에러 코드
 global_errors:
   - { name: None,         idx: 0, doc: "정상" }

@@ -1,6 +1,6 @@
 // Package protocol - 자동 생성된 프로토콜
 // 버전: 1
-// 자동 생성됨 (zoit-protocol-gen)
+// 자동 생성됨 (zlink-protocol-gen)
 
 package protocol
 
@@ -15,6 +15,8 @@ import (
 // --- 변수 및 상수 ---
 // =========================================================================
 const CurrentVersion = 1
+const HeaderSize = 16
+const HeaderUdpSize = 20
 
 type ErrorCode uint32
 
@@ -103,10 +105,12 @@ type Packet interface {
 func Register(srv any, callback func(ISession, any)) {
 	type engine interface {
 		SetUnmarshaler(func(uint32, []byte) (any, error))
+		SetHeaderSize(int, int)
 		AddRecvCallback(func(any, any))
 	}
 
 	if s, ok := srv.(engine); ok {
+		s.SetHeaderSize(HeaderSize, HeaderUdpSize)
 		// 파싱 로직은 최초 1회만 등록됨 (엔진 내부에서 처리)
 		s.SetUnmarshaler(_Unmarshal)
 		// 콜백 리스트에 추가
@@ -152,42 +156,39 @@ func _Unmarshal(cmd uint32, body []byte) (any, error) {
 }
 
 // =========================================================================
-// --- 시스템 헤더 (내부 동작용) ---
+// --- 시스템 헤더 (정의 기반 동적 생성) ---
 // =========================================================================
 
+
 type Sys_PackHeader struct {
-    Version uint32
-    Command uint32
-    Length  uint32
-    Error   uint32
+	Version uint32
+	Command uint32
+	Length uint32
+	Error uint32
 }
-
 func (h *Sys_PackHeader) Encode() []byte {
-    buf := new(bytes.Buffer)
-    binary.Write(buf, binary.LittleEndian, h)
-    return buf.Bytes()
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.LittleEndian, h)
+	return buf.Bytes()
 }
-
 func (h *Sys_PackHeader) Decode(data []byte) error {
-    return binary.Read(bytes.NewReader(data), binary.LittleEndian, h)
+	return binary.Read(bytes.NewReader(data), binary.LittleEndian, h)
 }
 
 type Sys_PackHeaderUDP struct {
-    Version uint32
-    Command uint32
-    Length  uint32
-    Sender  uint32
-    Error   uint32
+	Version uint32
+	Command uint32
+	Length uint32
+	Sender uint32
+	Error uint32
 }
-
 func (h *Sys_PackHeaderUDP) Encode() []byte {
-    buf := new(bytes.Buffer)
-    binary.Write(buf, binary.LittleEndian, h)
-    return buf.Bytes()
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.LittleEndian, h)
+	return buf.Bytes()
 }
-
 func (h *Sys_PackHeaderUDP) Decode(data []byte) error {
-    return binary.Read(bytes.NewReader(data), binary.LittleEndian, h)
+	return binary.Read(bytes.NewReader(data), binary.LittleEndian, h)
 }
 
 // =========================================================================

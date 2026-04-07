@@ -3,13 +3,12 @@ using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using Zoit.Logger;
-using Zoit.Protocol;
+using Zlink.Logger;
 
-namespace Zoit.Network
+namespace Zlink.Network
 {
     /// <summary>
-    /// ZPP 프레임워크 전용 고성능 TCP 클라이언트 (Async 기반)
+    /// ZLink 프레임워크 전용 고성능 TCP 클라이언트 (Async 기반)
     /// </summary>
     public class TcpClient : IDisposable
     {
@@ -21,11 +20,21 @@ namespace Zoit.Network
         // --- 핵심 개선: 엔진이 직접 프로토콜과 로직을 관리함 (Go/Python 동일) ---
         public Func<uint, byte[], object> Unmarshaler { get; private set; }
         private readonly List<Action<object, object>> _onRecvCallbacks = new List<Action<object, object>>();
+        
+        // 헤더 정보 (제네레이터에 의해 설정됨)
+        public int HeaderSize { get; private set; } = 16;
+        public Func<byte[], object> HeaderDecoder { get; private set; }
 
         public bool IsConnected => _isConnected && _client != null && _client.Connected;
 
         public void AddRecvCallback(Action<object, object> callback) => _onRecvCallbacks.Add(callback);
         public void SetUnmarshaler(Func<uint, byte[], object> unmarshaler) => Unmarshaler = unmarshaler;
+        
+        public void SetHeaderInfo(int headerSize, Func<byte[], object> decoder)
+        {
+            HeaderSize = headerSize;
+            HeaderDecoder = decoder;
+        }
 
         public async Task<bool> ConnectAsync(string host, int port)
         {
@@ -37,13 +46,13 @@ namespace Zoit.Network
                 _isConnected = true;
                 _cts = new CancellationTokenSource();
 
-                ClientLogger.Info($"[TCP] 서버 연결 성공: {host}:{port}");
+                Logger.Logger.Info($"[TCP] 서버 연결 성공: {host}:{port}");
                 _ = ReceiveLoop(_cts.Token);
                 return true;
             }
             catch (Exception ex)
             {
-                ClientLogger.Error($"[TCP] 연결 실패: {ex.Message}");
+                Logger.Logger.Error($"[TCP] 연결 실패: {ex.Message}");
                 return false;
             }
         }
@@ -57,7 +66,7 @@ namespace Zoit.Network
             }
             catch (Exception ex)
             {
-                ClientLogger.Error($"[TCP] 전송 오류: {ex.Message}");
+                Logger.Logger.Error($"[TCP] 전송 오류: {ex.Message}");
                 Disconnect();
             }
         }
@@ -69,36 +78,55 @@ namespace Zoit.Network
             _cts?.Cancel();
             _stream?.Close();
             _client?.Close();
-            ClientLogger.Info("[TCP] 연결 종료");
+            Logger.Logger.Info("[TCP] 연결 종료");
         }
 
         private async Task ReceiveLoop(CancellationToken token)
         {
-            byte[] headerBuf = new byte[16];
+            byte[] headerBuf = new byte[64]; // 충분한 크기 할당
             try
             {
                 while (!token.IsCancellationRequested && IsConnected)
                 {
-                    // 1. 헤더 읽기 (16 bytes)
+                    // 1. 헤더 읽기
                     int read = 0;
-                    while (read < 16)
+                    int targetSize = HeaderSize;
+                    while (read < targetSize)
                     {
-                        int n = await _stream.ReadAsync(headerBuf, read, 16 - read, token);
+                        int n = await _stream.ReadAsync(headerBuf, read, targetSize - read, token);
                         if (n <= 0) throw new Exception("연결 종료");
                         read += n;
                     }
 
-                    var header = HeaderTCP.Decode(headerBuf);
+                    uint command = 0;
+                    uint bodyLen = 0;
+
+                    if (HeaderDecoder != null)
+                    {
+                        var hdrObj = HeaderDecoder(headerBuf);
+                        if (hdrObj == null) continue;
+
+                        // 리플렉션을 통해 Command와 Length 필드 추출 (엔진 범용성 확보)
+                        var type = hdrObj.GetType();
+                        command = (uint)type.GetField("Command").GetValue(hdrObj);
+                        bodyLen = (uint)type.GetField("Length").GetValue(hdrObj);
+                    }
+                    else
+                    {
+                        // 기본 처리 (하위 호환성용 - Little Endian)
+                        command = BitConverter.ToUInt32(headerBuf, 4);
+                        bodyLen = BitConverter.ToUInt32(headerBuf, 8);
+                    }
                     
                     // 2. 바디 읽기
                     byte[] body = null;
-                    if (header.Length > 0)
+                    if (bodyLen > 0)
                     {
-                        body = new byte[header.Length];
+                        body = new byte[bodyLen];
                         int bodyRead = 0;
-                        while (bodyRead < header.Length)
+                        while (bodyRead < bodyLen)
                         {
-                            int n = await _stream.ReadAsync(body, bodyRead, (int)header.Length - bodyRead, token);
+                            int n = await _stream.ReadAsync(body, bodyRead, (int)bodyLen - bodyRead, token);
                             if (n <= 0) throw new Exception("바디 수신 중 연결 종료");
                             bodyRead += n;
                         }
@@ -107,7 +135,7 @@ namespace Zoit.Network
                     // 3. 자동 객체 변환 및 모든 콜백 호출
                     if (Unmarshaler != null)
                     {
-                        var msg = Unmarshaler(header.Command, body);
+                        var msg = Unmarshaler(command, body);
                         if (msg != null)
                         {
                             foreach (var cb in _onRecvCallbacks)
@@ -122,7 +150,7 @@ namespace Zoit.Network
             {
                 if (!token.IsCancellationRequested)
                 {
-                    ClientLogger.Warn($"[TCP] 수신 루프 비정상 종료: {ex.Message}");
+                    Logger.Logger.Warn($"[TCP] 수신 루프 비정상 종료: {ex.Message}");
                     Disconnect();
                 }
             }

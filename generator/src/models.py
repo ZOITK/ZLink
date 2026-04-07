@@ -78,12 +78,18 @@ class ErrorDef:
         return (self.kind_id * 10**7) + (self.category_id * 10**6) + self.index
 
 @dataclass
+class HeaderDef:
+    name: str # "tcp" or "udp"
+    fields: List[FieldDef]
+
+@dataclass
 class ProtocolDef:
     version: int
     types: Dict[str, TypeDef]
     structs: Dict[str, StructDef]
     packets: List[PacketDef]
     errors: List[ErrorDef]
+    headers: Dict[str, HeaderDef] = field(default_factory=dict)
     constants: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
     def get_type(self, type_name: str) -> Optional[TypeDef]:

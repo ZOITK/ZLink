@@ -8,10 +8,10 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/ZOITK/ZLink/examples/basic/protocol"
-	"github.com/ZOITK/ZLink/engine/server-go/config"
-	"github.com/ZOITK/ZLink/engine/server-go/logger"
-	"github.com/ZOITK/ZLink/engine/server-go/network"
+	"zlink/cmd/basic/protocol"
+	"zlink/pkg/config"
+	"zlink/pkg/logger"
+	"zlink/pkg/network"
 )
 
 // Player - 플레이어 정보

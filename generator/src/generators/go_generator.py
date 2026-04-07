@@ -19,6 +19,12 @@ class GoGenerator:
         print(f"✓ Go 프로토콜 생성 (ZPP 규격): {output_path}")
 
     def _generate_protocol_module(self) -> str:
+        # 헤더 사이즈 미리 계산 (상수 정의에서 사용됨)
+        tcp_hdr = self.protocol.headers.get("tcp")
+        udp_hdr = self.protocol.headers.get("udp")
+        tcp_size = sum(self.protocol.get_type(f.type_name).size for f in tcp_hdr.fields) if tcp_hdr else 16
+        udp_size = sum(self.protocol.get_type(f.type_name).size for f in udp_hdr.fields) if udp_hdr else 20
+
         sections = []
         
         # 1. 패키지 및 임포트
@@ -41,6 +47,8 @@ import (
             "// --- 변수 및 상수 ---",
             "// =========================================================================",
             f"const CurrentVersion = {self.protocol.version}",
+            f"const HeaderSize = {tcp_size}",
+            f"const HeaderUdpSize = {udp_size}",
             "",
             "type ErrorCode uint32",
             "",
@@ -87,6 +95,7 @@ type Packet interface {
 }""")
 
         # 5. --- 중앙 집중형 디스패처 (Binder) ---
+
         dispatch_lines = [
             "// =========================================================================",
             "// --- 중앙 집중형 디스패처 (Registration) ---",
@@ -97,10 +106,12 @@ type Packet interface {
             "func Register(srv any, callback func(ISession, any)) {",
             "\ttype engine interface {",
             "\t\tSetUnmarshaler(func(uint32, []byte) (any, error))",
+            "\t\tSetHeaderSize(int, int)",
             "\t\tAddRecvCallback(func(any, any))",
             "\t}",
             "",
             "\tif s, ok := srv.(engine); ok {",
+            f"\t\ts.SetHeaderSize(HeaderSize, HeaderUdpSize)",
             "\t\t// 파싱 로직은 최초 1회만 등록됨 (엔진 내부에서 처리)",
             "\t\ts.SetUnmarshaler(_Unmarshal)",
             "\t\t// 콜백 리스트에 추가",
@@ -109,11 +120,12 @@ type Packet interface {
             "\t\t})",
             "\t}",
             "}",
-            "",
-            "// _Unmarshal - 커맨드 ID에 따라 바이트 데이터를 해당 구조체로 자동 파싱 (비공개)",
-            "func _Unmarshal(cmd uint32, body []byte) (any, error) {",
-            "\tswitch cmd {"
         ]
+        
+        dispatch_lines.append("")
+        dispatch_lines.append("// _Unmarshal - 커맨드 ID에 따라 바이트 데이터를 해당 구조체로 자동 파싱 (비공개)")
+        dispatch_lines.append("func _Unmarshal(cmd uint32, body []byte) (any, error) {")
+        dispatch_lines.append("\tswitch cmd {")
         for pkt in sorted(self.protocol.packets, key=lambda x: x.get_id()):
             dispatch_lines.append(f"\tcase Cmd_{pkt.name}:")
             dispatch_lines.append(f"\t\tmsg := &Msg_{pkt.name}{{}}")
@@ -124,46 +136,31 @@ type Packet interface {
         dispatch_lines.append("}")
         sections.append("\n".join(dispatch_lines))
 
-        # 6. --- 시스템 헤더 ---
-        # ... (생략 없이 유지)
-        sections.append("""// =========================================================================
-// --- 시스템 헤더 (내부 동작용) ---
-// =========================================================================
-
-type Sys_PackHeader struct {
-    Version uint32
-    Command uint32
-    Length  uint32
-    Error   uint32
-}
-
-func (h *Sys_PackHeader) Encode() []byte {
-    buf := new(bytes.Buffer)
-    binary.Write(buf, binary.LittleEndian, h)
-    return buf.Bytes()
-}
-
-func (h *Sys_PackHeader) Decode(data []byte) error {
-    return binary.Read(bytes.NewReader(data), binary.LittleEndian, h)
-}
-
-type Sys_PackHeaderUDP struct {
-    Version uint32
-    Command uint32
-    Length  uint32
-    Sender  uint32
-    Error   uint32
-}
-
-func (h *Sys_PackHeaderUDP) Encode() []byte {
-    buf := new(bytes.Buffer)
-    binary.Write(buf, binary.LittleEndian, h)
-    return buf.Bytes()
-}
-
-func (h *Sys_PackHeaderUDP) Decode(data []byte) error {
-    return binary.Read(bytes.NewReader(data), binary.LittleEndian, h)
-}""")
+        # 6. --- 시스템 헤더 (정의 기반 동적 생성) ---
+        sections.append("// =========================================================================\n"
+                        "// --- 시스템 헤더 (정의 기반 동적 생성) ---\n"
+                        "// =========================================================================\n")
+        
+        for h_name, h_def in self.protocol.headers.items():
+            struct_name = f"Sys_PackHeader{h_name.upper()}"
+            if h_name.lower() == "tcp": struct_name = "Sys_PackHeader" # TCP는 기본 이름 유지
+            
+            lines = [f"type {struct_name} struct {{"]
+            for field in h_def.fields:
+                go_type = self._get_go_type(field)
+                lines.append(f"\t{field.name} {go_type}")
+            lines.append("}")
+            
+            lines.append(f"func (h *{struct_name}) Encode() []byte {{")
+            lines.append("\tbuf := new(bytes.Buffer)")
+            lines.append("\tbinary.Write(buf, binary.LittleEndian, h)")
+            lines.append("\treturn buf.Bytes()")
+            lines.append("}")
+            
+            lines.append(f"func (h *{struct_name}) Decode(data []byte) error {{")
+            lines.append("\treturn binary.Read(bytes.NewReader(data), binary.LittleEndian, h)")
+            lines.append("}")
+            sections.append("\n".join(lines))
 
         # 7. --- 구조체 관련 함수 ---
         struct_method_lines = [

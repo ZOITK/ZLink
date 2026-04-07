@@ -1,7 +1,7 @@
 import yaml
 from pathlib import Path
 from .models import (
-    ProtocolDef, TypeDef, StructDef, FieldDef, PacketDef, ErrorDef, DEFAULT_TYPES
+    ProtocolDef, TypeDef, StructDef, FieldDef, PacketDef, ErrorDef, HeaderDef, DEFAULT_TYPES
 )
 
 def clean_name(prefix: str, cat_title: str, base_name: str, suffix: str = "") -> str:
@@ -130,4 +130,20 @@ def load_protocol(schema_path: str) -> ProtocolDef:
                     type_id=t_id, index=idx, fields=fields, doc=doc, desc=desc
                 ))
 
-    return ProtocolDef(version=version, types=type_defs, structs=structs, packets=packets, errors=errors, constants=data.get("constants", {}))
+
+    # 헤더 정의 로드
+    headers = {}
+    header_data = data.get("header", {})
+    for h_name, h_def in header_data.items():
+        h_fields = [parse_field(fn, fd) for fn, fd in h_def.get("fields", {}).items()]
+        headers[h_name] = HeaderDef(name=h_name, fields=h_fields)
+
+    return ProtocolDef(
+        version=version, 
+        types=type_defs, 
+        structs=structs, 
+        packets=packets, 
+        errors=errors, 
+        headers=headers,
+        constants=data.get("constants", {})
+    )

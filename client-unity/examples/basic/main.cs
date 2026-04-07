@@ -1,10 +1,11 @@
-"""
+/*
 기본 에코 클라이언트 - 간단한 메시지 송수신
-"""
+*/
 using System;
 using System.Threading.Tasks;
-using Zoit.Network;
-using Zoit.Logger;
+using Zlink;
+using Zlink.Network;
+using Zlink.Logger;
 
 
 /// <summary>
@@ -28,7 +29,7 @@ public class BasicClient
 	/// </summary>
 	public async Task LoginAsync(TcpClient client)
 	{
-		ClientLogger.Info($"[Client] 로그인 시도: {this.nickname}");
+		Logger.Logger.Info($"[Client] 로그인 시도: {this.nickname}");
 		var req = new Msg_AuthLoginReq { Nickname = this.nickname };
 		client.Send(req.BuildTCP());
 		await Task.Delay(100);
@@ -39,7 +40,7 @@ public class BasicClient
 	/// </summary>
 	public async Task SendMessageAsync(TcpClient client, string message)
 	{
-		ClientLogger.Info($"[Client] 메시지 전송: {message}");
+		Logger.Logger.Info($"[Client] 메시지 전송: {message}");
 		var req = new Msg_MessageSendReq { Message = message };
 		client.Send(req.BuildTCP());
 		await Task.Delay(100);
@@ -53,7 +54,7 @@ public class BasicClient
 		if (msg.Result == 0)
 		{
 			this.playerID = msg.PlayerID;
-			ClientLogger.Info($"[Client] ✓ 로그인 성공 (ID: {msg.PlayerID})");
+			Logger.Logger.Info($"[Client] ✓ 로그인 성공 (ID: {msg.PlayerID})");
 
 			// 메시지 전송
 			await Task.Delay(500);
@@ -61,7 +62,7 @@ public class BasicClient
 		}
 		else
 		{
-			ClientLogger.Error($"[Client] ✗ 로그인 실패: {msg.Result}");
+			Logger.Logger.Error($"[Client] ✗ 로그인 실패: {msg.Result}");
 		}
 	}
 
@@ -72,7 +73,7 @@ public class BasicClient
 	{
 		if (msg.Result == 0)
 		{
-			ClientLogger.Info("[Client] ✓ 메시지 전송 성공");
+			Logger.Logger.Info("[Client] ✓ 메시지 전송 성공");
 		}
 	}
 
@@ -81,7 +82,7 @@ public class BasicClient
 	/// </summary>
 	public void HandleReceiveNotify(Msg_MessageReceiveNotify msg)
 	{
-		ClientLogger.Info($"[Chat] {msg.Nickname}: {msg.Message}");
+		Logger.Logger.Info($"[Chat] {msg.Nickname}: {msg.Message}");
 	}
 
 	/// <summary>
@@ -108,7 +109,7 @@ public class Program
 
 	public static async Task Main(string[] args)
 	{
-		ClientLogger.Info("🚀 기본 에코 클라이언트 시작");
+		Logger.Logger.Info("🚀 기본 에코 클라이언트 시작");
 
 		// 클라이언트 초기화
 		var client = new TcpClient();
@@ -119,14 +120,14 @@ public class Program
 		basicClient = new BasicClient(nickname);
 
 		// 서버 연결
-		ClientLogger.Info("[Network] 서버 연결 중... (127.0.0.1:8080)");
+		Logger.Logger.Info("[Network] 서버 연결 중... (127.0.0.1:8080)");
 		if (!await client.ConnectAsync("127.0.0.1", 8080))
 		{
-			ClientLogger.Error("[Network] 서버 연결 실패");
+			Logger.Logger.Error("[Network] 서버 연결 실패");
 			return;
 		}
 
-		ClientLogger.Info("[Network] ✓ 서버 연결 성공");
+		Logger.Logger.Info("[Network] ✓ 서버 연결 성공");
 
 		// 로그인
 		await basicClient.LoginAsync(client);
@@ -145,9 +146,10 @@ public class Program
 		// 10초 유지
 		await Task.Delay(10000);
 
-		ClientLogger.Info("[Network] 연결 종료");
+		Logger.Logger.Info("[Network] 연결 종료");
 		basicClient.Stop();
-		await client.CloseAsync();
+		// TcpClient.CloseAsync() -> Disconnect()로 매핑 확인 필요. TcpClient에는 Disconnect()가 있음.
+        client.Disconnect();
 	}
 
 	/// <summary>
@@ -172,7 +174,7 @@ public class Program
 				break;
 
 			case Msg_SystemTCPHeartBitRes hbRes:
-				ClientLogger.Debug($"[System] 하트비트 응답: {hbRes.ServerTime}");
+				Logger.Logger.Debug($"[System] 하트비트 응답: {hbRes.ServerTime}");
 				break;
 		}
 	}

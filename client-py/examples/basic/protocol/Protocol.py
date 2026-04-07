@@ -36,10 +36,12 @@ Cmd_MessageReceiveNotify = 13130002  # Receive Message / 메시지 수신
 
 def Register(Engine: Any, Callback: Callable[[Any, Any], Any]):
     """엔진 서버에 프로토콜 파서와 비즈니스 콜백을 등록합니다. (Go와 동일)"""
-    # 엔진의 인터페이스 확인 (Duck Typing)
     if hasattr(Engine, 'SetUnmarshaler') and hasattr(Engine, 'AddRecvCallback'):
         Engine.SetUnmarshaler(_Unmarshal)
         Engine.AddRecvCallback(Callback)
+    
+    if hasattr(Engine, 'SetHeaderInfo'):
+        Engine.SetHeaderInfo(HEADER_SIZE, PackHeader.Decode)
 
 def _Unmarshal(CmdID: int, Body: bytes) -> Optional[Any]:
     """커맨드 ID에 따라 데이터를 해당 클래스로 자동 파싱 (비공개)"""
@@ -52,15 +54,7 @@ def _Unmarshal(CmdID: int, Body: bytes) -> Optional[Any]:
 
 class PacketRegistry:
     """커맨드 ID와 패킷 클래스를 매핑하는 레지스트리"""
-    _Registry: Dict[int, Type] = {
-        Cmd_SystemTCPHeartBitReq: Msg_SystemTCPHeartBitReq,
-        Cmd_SystemTCPHeartBitRes: Msg_SystemTCPHeartBitRes,
-        Cmd_AuthLoginReq: Msg_AuthLoginReq,
-        Cmd_AuthLoginRes: Msg_AuthLoginRes,
-        Cmd_MessageSendReq: Msg_MessageSendReq,
-        Cmd_MessageSendRes: Msg_MessageSendRes,
-        Cmd_MessageReceiveNotify: Msg_MessageReceiveNotify,
-    }
+    _Registry: Dict[int, Type] = {}
 
     @classmethod
     def GetPacketClass(cls, CmdID: int) -> Optional[Type]:
@@ -74,27 +68,26 @@ def Encode(Obj: Any) -> bytes: return msgspec.msgpack.encode(Obj)
 def Decode(Cls: Any, Data: bytes) -> Any: return msgspec.msgpack.decode(Data, type=Cls)
 
 # =============================================================================
-# --- 패킷 헤더 ---
+# --- 패킷 헤더 (정의 기반 동적 생성) ---
 # =============================================================================
-
 @dataclass
 class PackHeader:
-    """TCP 패킷 헤더 (16 bytes)"""
-    Version: int = CURRENT_VERSION
+    """TCP 패킷 헤더"""
+    Version: int = 0
     Command: int = 0
     Length: int = 0
     Error: int = 0
     def Encode(self) -> bytes: return struct.pack("<IIII", self.Version, self.Command, self.Length, self.Error)
     @classmethod
     def Decode(cls, Data: bytes):
-        if len(Data) < 16: return None
-        v, c, l, e = struct.unpack("<IIII", Data[:16])
-        return cls(v, c, l, e)
+        if len(Data) < struct.calcsize("<IIII"): return None
+        vals = struct.unpack("<IIII", Data[:struct.calcsize("<IIII")])
+        return cls(*vals)
 
 @dataclass
 class PackHeaderUDP:
-    """UDP 패킷 헤더 (20 bytes)"""
-    Version: int = CURRENT_VERSION
+    """UDP 패킷 헤더"""
+    Version: int = 0
     Command: int = 0
     Length: int = 0
     Sender: int = 0
@@ -102,9 +95,10 @@ class PackHeaderUDP:
     def Encode(self) -> bytes: return struct.pack("<IIIII", self.Version, self.Command, self.Length, self.Sender, self.Error)
     @classmethod
     def Decode(cls, Data: bytes):
-        if len(Data) < 20: return None
-        v, c, l, s, e = struct.unpack("<IIIII", Data[:20])
-        return cls(v, c, l, s, e)
+        if len(Data) < struct.calcsize("<IIIII"): return None
+        vals = struct.unpack("<IIIII", Data[:struct.calcsize("<IIIII")])
+        return cls(*vals)
+
 
 # =============================================================================
 # --- 데이터 구조체 및 패킷 정의 ---
@@ -237,3 +231,12 @@ class Msg_MessageReceiveNotify(msgspec.Struct, omit_defaults=True, array_like=Tr
         Body = self.Encode()
         Hdr = PackHeaderUDP(Version=CURRENT_VERSION, Command=self.ID, Length=len(Body), Sender=Sender, Error=0)
         return Hdr.Encode() + Body
+
+# --- 패킷 레지스트리 등록 ---
+PacketRegistry._Registry[Cmd_SystemTCPHeartBitReq] = Msg_SystemTCPHeartBitReq
+PacketRegistry._Registry[Cmd_SystemTCPHeartBitRes] = Msg_SystemTCPHeartBitRes
+PacketRegistry._Registry[Cmd_AuthLoginReq] = Msg_AuthLoginReq
+PacketRegistry._Registry[Cmd_AuthLoginRes] = Msg_AuthLoginRes
+PacketRegistry._Registry[Cmd_MessageSendReq] = Msg_MessageSendReq
+PacketRegistry._Registry[Cmd_MessageSendRes] = Msg_MessageSendRes
+PacketRegistry._Registry[Cmd_MessageReceiveNotify] = Msg_MessageReceiveNotify

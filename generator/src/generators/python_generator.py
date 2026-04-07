@@ -20,6 +20,12 @@ class PythonGenerator:
         print(f"✓ Python 프로토콜 생성 (ZPP 규격): {output_path}")
 
     def _generate_protocol_module(self) -> str:
+        # 헤더 사이즈 미리 계산
+        tcp_hdr = self.protocol.headers.get("tcp")
+        udp_hdr = self.protocol.headers.get("udp")
+        tcp_size = sum(self.protocol.get_type(f.type_name).size for f in tcp_hdr.fields) if tcp_hdr else 16
+        udp_size = sum(self.protocol.get_type(f.type_name).size for f in udp_hdr.fields) if udp_hdr else 20
+
         header = f"""# 자동 생성된 프로토콜
 # 버전: {self.protocol.version}
 # 자동 생성됨 (zlink-protocol-gen)
@@ -34,8 +40,8 @@ from typing import List, Optional, Any, Union, Dict, Type, Callable
 # --- 변수 및 상수 ---
 # =============================================================================
 CURRENT_VERSION = {self.protocol.version}  # 프로토콜 현재 버전
-HEADER_SIZE = 16      # TCP 헤더 크기
-HEADER_UDP_SIZE = 20  # UDP 헤더 크기
+HEADER_SIZE = {tcp_size}      # TCP 헤더 크기
+HEADER_UDP_SIZE = {udp_size}  # UDP 헤더 크기
 """
         # 에러 코드 추가
         header += "\n# --- 에러 코드 (Err_) ---\n"
@@ -48,6 +54,7 @@ HEADER_UDP_SIZE = 20  # UDP 헤더 크기
             comment = f"  # {pkt.doc}" if pkt.doc else ""
             header += f"Cmd_{pkt.name} = {pkt.get_id()}{comment}\n"
 
+        # 디바이스 및 디스패처
         header += f"""
 # =============================================================================
 # --- 중앙 집중형 디스패처 (Registration) ---
@@ -55,10 +62,12 @@ HEADER_UDP_SIZE = 20  # UDP 헤더 크기
 
 def Register(Engine: Any, Callback: Callable[[Any, Any], Any]):
     \"\"\"엔진 서버에 프로토콜 파서와 비즈니스 콜백을 등록합니다. (Go와 동일)\"\"\"
-    # 엔진의 인터페이스 확인 (Duck Typing)
     if hasattr(Engine, 'SetUnmarshaler') and hasattr(Engine, 'AddRecvCallback'):
         Engine.SetUnmarshaler(_Unmarshal)
         Engine.AddRecvCallback(Callback)
+    
+    if hasattr(Engine, 'SetHeaderInfo'):
+        Engine.SetHeaderInfo(HEADER_SIZE, PackHeader.Decode)
 
 def _Unmarshal(CmdID: int, Body: bytes) -> Optional[Any]:
     \"\"\"커맨드 ID에 따라 데이터를 해당 클래스로 자동 파싱 (비공개)\"\"\"
@@ -71,12 +80,7 @@ def _Unmarshal(CmdID: int, Body: bytes) -> Optional[Any]:
 
 class PacketRegistry:
     \"\"\"커맨드 ID와 패킷 클래스를 매핑하는 레지스트리\"\"\"
-    _Registry: Dict[int, Type] = {{
-"""
-        for pkt in sorted(self.protocol.packets, key=lambda x: x.get_id()):
-            header += f"        Cmd_{pkt.name}: Msg_{pkt.name},\n"
-
-        header += """    }
+    _Registry: Dict[int, Type] = {{}}
 
     @classmethod
     def GetPacketClass(cls, CmdID: int) -> Optional[Type]:
@@ -90,38 +94,40 @@ def Encode(Obj: Any) -> bytes: return msgspec.msgpack.encode(Obj)
 def Decode(Cls: Any, Data: bytes) -> Any: return msgspec.msgpack.decode(Data, type=Cls)
 
 # =============================================================================
-# --- 패킷 헤더 ---
+# --- 패킷 헤더 (정의 기반 동적 생성) ---
 # =============================================================================
+"""
+        for h_name, h_def in self.protocol.headers.items():
+            class_name = f"PackHeader{h_name.upper()}"
+            if h_name.lower() == "tcp": class_name = "PackHeader"
+            
+            header += f"@dataclass\nclass {class_name}:\n"
+            header += f"    \"\"\"{h_name.upper()} 패킷 헤더\"\"\"\n"
+            
+            struct_fmt = "<"
+            fields_str = []
+            for f in h_def.fields:
+                py_type = self._get_python_type(f)
+                header += f"    {f.name}: {py_type} = 0\n"
+                fmt_part = "I"
+                t_def = self.protocol.get_type(f.type_name)
+                if t_def:
+                    if t_def.name == "uint8": fmt_part = "B"
+                    elif t_def.name == "uint16": fmt_part = "H"
+                    elif t_def.name == "uint32": fmt_part = "I"
+                    elif t_def.name == "int32": fmt_part = "i"
+                    elif t_def.name == "int64": fmt_part = "q"
+                struct_fmt += fmt_part
+                fields_str.append(f"self.{f.name}")
+            
+            header += f"    def Encode(self) -> bytes: return struct.pack(\"{struct_fmt}\", {', '.join(fields_str)})\n"
+            header += "    @classmethod\n"
+            header += f"    def Decode(cls, Data: bytes):\n"
+            header += f"        if len(Data) < struct.calcsize(\"{struct_fmt}\"): return None\n"
+            header += f"        vals = struct.unpack(\"{struct_fmt}\", Data[:struct.calcsize(\"{struct_fmt}\")])\n"
+            header += f"        return cls(*vals)\n\n"
 
-@dataclass
-class PackHeader:
-    \"\"\"TCP 패킷 헤더 (16 bytes)\"\"\"
-    Version: int = CURRENT_VERSION
-    Command: int = 0
-    Length: int = 0
-    Error: int = 0
-    def Encode(self) -> bytes: return struct.pack("<IIII", self.Version, self.Command, self.Length, self.Error)
-    @classmethod
-    def Decode(cls, Data: bytes):
-        if len(Data) < 16: return None
-        v, c, l, e = struct.unpack("<IIII", Data[:16])
-        return cls(v, c, l, e)
-
-@dataclass
-class PackHeaderUDP:
-    \"\"\"UDP 패킷 헤더 (20 bytes)\"\"\"
-    Version: int = CURRENT_VERSION
-    Command: int = 0
-    Length: int = 0
-    Sender: int = 0
-    Error: int = 0
-    def Encode(self) -> bytes: return struct.pack("<IIIII", self.Version, self.Command, self.Length, self.Sender, self.Error)
-    @classmethod
-    def Decode(cls, Data: bytes):
-        if len(Data) < 20: return None
-        v, c, l, s, e = struct.unpack("<IIIII", Data[:20])
-        return cls(v, c, l, s, e)
-
+        header += """
 # =============================================================================
 # --- 데이터 구조체 및 패킷 정의 ---
 # =============================================================================
@@ -133,6 +139,12 @@ class PackHeaderUDP:
             body_parts.append(self._generate_packet_def(pkt))
 
         header += "\n\n".join(body_parts)
+
+        # --- 패킷 레지스트리 지연 등록 (NameError 방지용) ---
+        header += "\n\n# --- 패킷 레지스트리 등록 ---\n"
+        for pkt in sorted(self.protocol.packets, key=lambda x: x.get_id()):
+            header += f"PacketRegistry._Registry[Cmd_{pkt.name}] = Msg_{pkt.name}\n"
+
         return header
 
     def _generate_struct_def(self, struct: StructDef) -> str:

@@ -23,6 +23,12 @@ class CSharpGenerator:
 
     def _generate_protocol_file(self) -> str:
         """Protocol.cs 전체 내용 생성"""
+        # 헤더 사이즈 미리 계산
+        tcp_hdr = self.protocol.headers.get("tcp")
+        udp_hdr = self.protocol.headers.get("udp")
+        tcp_size = sum(self.protocol.get_type(f.type_name).size for f in tcp_hdr.fields) if tcp_hdr else 16
+        udp_size = sum(self.protocol.get_type(f.type_name).size for f in udp_hdr.fields) if udp_hdr else 20
+
         lines = []
 
         # 파일 헤더
@@ -43,6 +49,11 @@ namespace Zlink
     {{
         /// <summary>프로토콜 현재 버전</summary>
         public const uint CurrentVersion = {self.protocol.version};
+
+        /// <summary>TCP 헤더 크기</summary>
+        public const int HeaderSize = {tcp_size};
+        /// <summary>UDP 헤더 크기</summary>
+        public const int HeaderUdpSize = {udp_size};
 
         // =====================================================================
         // --- 에러 코드 (Err_) ---
@@ -69,22 +80,32 @@ namespace Zlink
         // =====================================================================
         // --- 중앙 집중형 디스패처 (Registration) ---
         // =====================================================================
+        """)
 
+        lines.append(f"""
         /// <summary>엔진 서버에 프로토콜 파서와 비즈니스 콜백을 등록합니다. (Go/Python 동일)</summary>
         public static void Register(object engine, Action<object, object> callback)
-        {
+        {{
             // 리플렉션을 사용하여 엔진의 메서드 호출 (Duck Typing 방식)
             var type = engine.GetType();
             var setUnmarshaler = type.GetMethod("SetUnmarshaler");
             var addRecvCallback = type.GetMethod("AddRecvCallback");
+            var setHeaderInfo = type.GetMethod("SetHeaderInfo");
 
             if (setUnmarshaler != null && addRecvCallback != null)
-            {
-                setUnmarshaler.Invoke(engine, new object[] { new Func<uint, byte[], object>(_Unmarshal) });
-                addRecvCallback.Invoke(engine, new object[] { callback });
-            }
-        }
+            {{
+                setUnmarshaler.Invoke(engine, new object[] {{ new Func<uint, byte[], object>(_Unmarshal) }});
+                addRecvCallback.Invoke(engine, new object[] {{ callback }});
+            }}
 
+            if (setHeaderInfo != null)
+            {{
+                // 헤더 정보 설정 (TCP 헤더 크기 및 디코더 호출)
+                setHeaderInfo.Invoke(engine, new object[] {{ HeaderSize, new Func<byte[], object>(Sys_PackHeader.Decode) }});
+            }}
+        }}""")
+
+        lines.append("""
         private static object _Unmarshal(uint command, byte[] body)
         {
             switch (command)
@@ -96,84 +117,64 @@ namespace Zlink
         lines.append("""                default: return null;
             }
         }
-
-        private static byte[] Combine(byte[] a, byte[] b)
-        {
-            if (b == null || b.Length == 0) return a;
-            var result = new byte[a.Length + b.Length];
-            Buffer.BlockCopy(a, 0, result, 0, a.Length);
-            Buffer.BlockCopy(b, 0, result, a.Length, b.Length);
-            return result;
-        }
     }
 
     // =========================================================================
-    // --- 시스템 헤더 ---
+    // --- 시스템 헤더 (정의 기반 동적 생성) ---
     // =========================================================================
+""")
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct Sys_PackHeader
-    {
-        public uint Version;
-        public uint Command;
-        public uint Length;
-        public uint Error;
+        for h_name, h_def in self.protocol.headers.items():
+            struct_name = f"Sys_PackHeader{h_name.upper()}"
+            if h_name.lower() == "tcp": struct_name = "Sys_PackHeader"
 
-        public byte[] Encode()
-        {
-            var buf = new byte[16];
-            BitConverter.TryWriteBytes(buf.AsSpan(0),  Version);
-            BitConverter.TryWriteBytes(buf.AsSpan(4),  Command);
-            BitConverter.TryWriteBytes(buf.AsSpan(8),  Length);
-            BitConverter.TryWriteBytes(buf.AsSpan(12), Error);
-            return buf;
-        }
+            size_const = "Protocol.HeaderUdpSize" if h_name.lower() == "udp" else "Protocol.HeaderSize"
 
-        public static Sys_PackHeader Decode(byte[] data)
-        {
-            return new Sys_PackHeader
-            {
-                Version = BitConverter.ToUInt32(data, 0),
-                Command = BitConverter.ToUInt32(data, 4),
-                Length  = BitConverter.ToUInt32(data, 8),
-                Error   = BitConverter.ToUInt32(data, 12)
-            };
-        }
-    }
+            lines.append(f"    [StructLayout(LayoutKind.Sequential, Pack = 1)]")
+            lines.append(f"    public struct {struct_name}")
+            lines.append(f"    {{")
+            
+            for f in h_def.fields:
+                lines.append(f"        public {self._get_cs_type(f)} {f.name};")
+            
+            lines.append("")
+            lines.append(f"        public byte[] Encode()")
+            lines.append(f"        {{")
+            lines.append(f"            var buf = new byte[{size_const}];")
+            offset = 0
+            for f in h_def.fields:
+                t_def = self.protocol.get_type(f.type_name)
+                if t_def:
+                    lines.append(f"            BitConverter.TryWriteBytes(buf.AsSpan({offset}), {f.name});")
+                    offset += t_def.size
+            lines.append(f"            return buf;")
+            lines.append(f"        }}")
+            
+            lines.append("")
+            lines.append(f"        public static {struct_name} Decode(byte[] data)")
+            lines.append(f"        {{")
+            lines.append(f"            if (data == null || data.Length < {size_const}) return default;")
+            lines.append(f"            return new {struct_name}")
+            lines.append(f"            {{")
+            offset = 0
+            for f in h_def.fields:
+                t_def = self.protocol.get_type(f.type_name)
+                if t_def:
+                    if t_def.name == "uint8":
+                        lines.append(f"                {f.name} = data[{offset}],")
+                    else:
+                        suffix = t_def.csharp.capitalize()
+                        if suffix == "Uint": suffix = "UInt32"
+                        if suffix == "Ushort": suffix = "UInt16"
+                        if suffix == "Int": suffix = "Int32"
+                        lines.append(f"                {f.name} = BitConverter.To{suffix}(data, {offset}),")
+                    offset += t_def.size
+            lines.append(f"            }};")
+            lines.append(f"        }}")
+            lines.append(f"    }}")
+            lines.append("")
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct Sys_PackHeaderUDP
-    {
-        public uint Version;
-        public uint Command;
-        public uint Length;
-        public uint Sender;
-        public uint Error;
-
-        public byte[] Encode()
-        {
-            var buf = new byte[20];
-            BitConverter.TryWriteBytes(buf.AsSpan(0),  Version);
-            BitConverter.TryWriteBytes(buf.AsSpan(4),  Command);
-            BitConverter.TryWriteBytes(buf.AsSpan(8),  Length);
-            BitConverter.TryWriteBytes(buf.AsSpan(12), Sender);
-            BitConverter.TryWriteBytes(buf.AsSpan(16), Error);
-            return buf;
-        }
-
-        public static Sys_PackHeaderUDP Decode(byte[] data)
-        {
-            return new Sys_PackHeaderUDP
-            {
-                Version = BitConverter.ToUInt32(data, 0),
-                Command = BitConverter.ToUInt32(data, 4),
-                Length  = BitConverter.ToUInt32(data, 8),
-                Sender  = BitConverter.ToUInt32(data, 12),
-                Error   = BitConverter.ToUInt32(data, 16)
-            };
-        }
-    }
-
+        lines.append("""
     // =========================================================================
     // --- 데이터 구조체 및 패킷 정의 ---
     // =========================================================================
@@ -200,7 +201,7 @@ namespace Zlink
             "    [MessagePackObject]",
             f"    public class Msg_{struct.name}",
             "    {",
-        ]
+            ]
         for i, field in enumerate(struct.fields):
             cs_type = self._get_cs_type(field)
             if field.doc:
@@ -220,7 +221,7 @@ namespace Zlink
             "    [MessagePackObject]",
             f"    public class Msg_{pkt.name}",
             "    {",
-        ]
+            ]
         for i, field in enumerate(pkt.fields):
             cs_type = self._get_cs_type(field)
             if field.doc:
@@ -235,20 +236,21 @@ namespace Zlink
         lines.append("        public byte[] BuildTCP(uint errorCode = 0)")
         lines.append("        {")
         lines.append("            var body = Encode();")
-        lines.append("            var hdr = new Sys_PackHeader { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Error = errorCode };")
-        lines.append("            var result = new byte[16 + body.Length];")
-        lines.append("            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 16);")
-        lines.append("            Buffer.BlockCopy(body, 0, result, 16, body.Length);")
+        # 동적 헤더 생성에 맞춰 필드 할당 (표준 필드가 존재한다고 가정)
+        lines.append(f"            var hdr = new Sys_PackHeader {{ Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Error = errorCode }};")
+        lines.append(f"            var result = new byte[Protocol.HeaderSize + body.Length];")
+        lines.append(f"            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, Protocol.HeaderSize);")
+        lines.append(f"            Buffer.BlockCopy(body, 0, result, Protocol.HeaderSize, body.Length);")
         lines.append("            return result;")
         lines.append("        }")
         lines.append("")
         lines.append("        public byte[] BuildUDP(uint sender)")
         lines.append("        {")
         lines.append("            var body = Encode();")
-        lines.append("            var hdr = new Sys_PackHeaderUDP { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Sender = sender, Error = 0 };")
-        lines.append("            var result = new byte[20 + body.Length];")
-        lines.append("            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 20);")
-        lines.append("            Buffer.BlockCopy(body, 0, result, 20, body.Length);")
+        lines.append(f"            var hdr = new Sys_PackHeaderUDP {{ Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Sender = sender, Error = 0 }};")
+        lines.append(f"            var result = new byte[Protocol.HeaderUdpSize + body.Length];")
+        lines.append(f"            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, Protocol.HeaderUdpSize);")
+        lines.append(f"            Buffer.BlockCopy(body, 0, result, Protocol.HeaderUdpSize, body.Length);")
         lines.append("            return result;")
         lines.append("        }")
         lines.append("    }")

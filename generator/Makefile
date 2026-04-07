@@ -65,5 +65,5 @@ help:
 	@echo "  # 생성된 파일을 각 프로젝트에 복사"
 	@echo "  cp output/Protocol.go ../server/cmd/basic/protocol/"
 	@echo "  cp output/Protocol.go ../server/cmd/game/protocol/"
-	@echo "  cp output/Protocol.py ../client-py/src/zlink/protocol/"
-	@echo "  cp output/Protocol.cs ../client-unity/Assets/ZoSocket/Protocol/"
+	@echo "  cp output/Protocol.py ../client-py/examples/basic/protocol/"
+	@echo "  cp output/Protocol.cs ../client-unity/examples/basic/Protocol/"

@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/ZOITK/ZLink/examples/game/protocol"
-	"github.com/ZOITK/ZLink/engine/server-go/config"
-	"github.com/ZOITK/ZLink/engine/server-go/logger"
-	"github.com/ZOITK/ZLink/engine/server-go/network"
+	"zlink/pkg/config"
+	"zlink/pkg/logger"
+	"zlink/pkg/network"
 )
 
 // 플레이어 상태 상수

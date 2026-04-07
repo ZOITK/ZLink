@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"net"
 
-	"github.com/ZOITK/ZLink/engine/server-go/base"
-	"github.com/ZOITK/ZLink/engine/server-go/config"
+	"zlink/pkg/base"
+	"zlink/pkg/config"
 )
 
 // Server - 프레임워크 통합 서버 객체
@@ -25,6 +25,10 @@ type Server struct {
 	// 엔진 이벤트 핸들러
 	OnConnect func(conn net.Conn)
 	OnPacket  func(hdr *base.HeaderUDP, body []byte, addr *net.UDPAddr)
+
+	// 헤더 정보 (제네레이터에 의해 설정됨)
+	TCPHeaderSize int
+	UDPHeaderSize int
 }
 
 // NewServer - 새 서버 인스턴스 생성
@@ -33,6 +37,8 @@ func NewServer(cfg *config.Config) *Server {
 		Config:          cfg,
 		BufferPool:      NewBufferPool(),
 		OnRecvCallbacks: make([]func(*Session, any), 0),
+		TCPHeaderSize:   base.TCPHeaderSize, // 기본값
+		UDPHeaderSize:   base.UDPHeaderSize, // 기본값
 	}
 	
 	s.TCP = NewTCPServer("0.0.0.0", cfg.TCPPort, func(conn net.Conn) {
@@ -56,6 +62,12 @@ func (s *Server) AddRecvCallback(cb func(any, any)) {
 // SetUnmarshaler - 제네레이터가 호출하여 파싱 로직을 등록합니다.
 func (s *Server) SetUnmarshaler(u func(uint32, []byte) (any, error)) {
 	s.Unmarshaler = u
+}
+
+// SetHeaderSize - 제네레이터가 호출하여 헤더 크기를 설정합니다.
+func (s *Server) SetHeaderSize(tcpSize, udpSize int) {
+	s.TCPHeaderSize = tcpSize
+	s.UDPHeaderSize = udpSize
 }
 
 // Start, Stop 생략...

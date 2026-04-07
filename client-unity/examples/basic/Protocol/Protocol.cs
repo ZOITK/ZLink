@@ -16,6 +16,11 @@ namespace Zlink
         /// <summary>프로토콜 현재 버전</summary>
         public const uint CurrentVersion = 1;
 
+        /// <summary>TCP 헤더 크기</summary>
+        public const int HeaderSize = 16;
+        /// <summary>UDP 헤더 크기</summary>
+        public const int HeaderUdpSize = 20;
+
         // =====================================================================
         // --- 에러 코드 (Err_) ---
         // =====================================================================
@@ -51,6 +56,7 @@ namespace Zlink
         // =====================================================================
         // --- 중앙 집중형 디스패처 (Registration) ---
         // =====================================================================
+        
 
         /// <summary>엔진 서버에 프로토콜 파서와 비즈니스 콜백을 등록합니다. (Go/Python 동일)</summary>
         public static void Register(object engine, Action<object, object> callback)
@@ -59,11 +65,18 @@ namespace Zlink
             var type = engine.GetType();
             var setUnmarshaler = type.GetMethod("SetUnmarshaler");
             var addRecvCallback = type.GetMethod("AddRecvCallback");
+            var setHeaderInfo = type.GetMethod("SetHeaderInfo");
 
             if (setUnmarshaler != null && addRecvCallback != null)
             {
                 setUnmarshaler.Invoke(engine, new object[] { new Func<uint, byte[], object>(_Unmarshal) });
                 addRecvCallback.Invoke(engine, new object[] { callback });
+            }
+
+            if (setHeaderInfo != null)
+            {
+                // 헤더 정보 설정 (TCP 헤더 크기 및 디코더 호출)
+                setHeaderInfo.Invoke(engine, new object[] { HeaderSize, new Func<byte[], object>(Sys_PackHeader.Decode) });
             }
         }
 
@@ -82,19 +95,10 @@ namespace Zlink
                 default: return null;
             }
         }
-
-        private static byte[] Combine(byte[] a, byte[] b)
-        {
-            if (b == null || b.Length == 0) return a;
-            var result = new byte[a.Length + b.Length];
-            Buffer.BlockCopy(a, 0, result, 0, a.Length);
-            Buffer.BlockCopy(b, 0, result, a.Length, b.Length);
-            return result;
-        }
     }
 
     // =========================================================================
-    // --- 시스템 헤더 ---
+    // --- 시스템 헤더 (정의 기반 동적 생성) ---
     // =========================================================================
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -107,22 +111,23 @@ namespace Zlink
 
         public byte[] Encode()
         {
-            var buf = new byte[16];
-            BitConverter.TryWriteBytes(buf.AsSpan(0),  Version);
-            BitConverter.TryWriteBytes(buf.AsSpan(4),  Command);
-            BitConverter.TryWriteBytes(buf.AsSpan(8),  Length);
+            var buf = new byte[Protocol.HeaderSize];
+            BitConverter.TryWriteBytes(buf.AsSpan(0), Version);
+            BitConverter.TryWriteBytes(buf.AsSpan(4), Command);
+            BitConverter.TryWriteBytes(buf.AsSpan(8), Length);
             BitConverter.TryWriteBytes(buf.AsSpan(12), Error);
             return buf;
         }
 
         public static Sys_PackHeader Decode(byte[] data)
         {
+            if (data == null || data.Length < Protocol.HeaderSize) return default;
             return new Sys_PackHeader
             {
                 Version = BitConverter.ToUInt32(data, 0),
                 Command = BitConverter.ToUInt32(data, 4),
-                Length  = BitConverter.ToUInt32(data, 8),
-                Error   = BitConverter.ToUInt32(data, 12)
+                Length = BitConverter.ToUInt32(data, 8),
+                Error = BitConverter.ToUInt32(data, 12),
             };
         }
     }
@@ -138,10 +143,10 @@ namespace Zlink
 
         public byte[] Encode()
         {
-            var buf = new byte[20];
-            BitConverter.TryWriteBytes(buf.AsSpan(0),  Version);
-            BitConverter.TryWriteBytes(buf.AsSpan(4),  Command);
-            BitConverter.TryWriteBytes(buf.AsSpan(8),  Length);
+            var buf = new byte[Protocol.HeaderUdpSize];
+            BitConverter.TryWriteBytes(buf.AsSpan(0), Version);
+            BitConverter.TryWriteBytes(buf.AsSpan(4), Command);
+            BitConverter.TryWriteBytes(buf.AsSpan(8), Length);
             BitConverter.TryWriteBytes(buf.AsSpan(12), Sender);
             BitConverter.TryWriteBytes(buf.AsSpan(16), Error);
             return buf;
@@ -149,16 +154,18 @@ namespace Zlink
 
         public static Sys_PackHeaderUDP Decode(byte[] data)
         {
+            if (data == null || data.Length < Protocol.HeaderUdpSize) return default;
             return new Sys_PackHeaderUDP
             {
                 Version = BitConverter.ToUInt32(data, 0),
                 Command = BitConverter.ToUInt32(data, 4),
-                Length  = BitConverter.ToUInt32(data, 8),
-                Sender  = BitConverter.ToUInt32(data, 12),
-                Error   = BitConverter.ToUInt32(data, 16)
+                Length = BitConverter.ToUInt32(data, 8),
+                Sender = BitConverter.ToUInt32(data, 12),
+                Error = BitConverter.ToUInt32(data, 16),
             };
         }
     }
+
 
     // =========================================================================
     // --- 데이터 구조체 및 패킷 정의 ---
@@ -178,9 +185,9 @@ namespace Zlink
         {
             var body = Encode();
             var hdr = new Sys_PackHeader { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Error = errorCode };
-            var result = new byte[16 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 16);
-            Buffer.BlockCopy(body, 0, result, 16, body.Length);
+            var result = new byte[Protocol.HeaderSize + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, Protocol.HeaderSize);
+            Buffer.BlockCopy(body, 0, result, Protocol.HeaderSize, body.Length);
             return result;
         }
 
@@ -188,9 +195,9 @@ namespace Zlink
         {
             var body = Encode();
             var hdr = new Sys_PackHeaderUDP { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Sender = sender, Error = 0 };
-            var result = new byte[20 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 20);
-            Buffer.BlockCopy(body, 0, result, 20, body.Length);
+            var result = new byte[Protocol.HeaderUdpSize + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, Protocol.HeaderUdpSize);
+            Buffer.BlockCopy(body, 0, result, Protocol.HeaderUdpSize, body.Length);
             return result;
         }
     }
@@ -209,9 +216,9 @@ namespace Zlink
         {
             var body = Encode();
             var hdr = new Sys_PackHeader { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Error = errorCode };
-            var result = new byte[16 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 16);
-            Buffer.BlockCopy(body, 0, result, 16, body.Length);
+            var result = new byte[Protocol.HeaderSize + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, Protocol.HeaderSize);
+            Buffer.BlockCopy(body, 0, result, Protocol.HeaderSize, body.Length);
             return result;
         }
 
@@ -219,9 +226,9 @@ namespace Zlink
         {
             var body = Encode();
             var hdr = new Sys_PackHeaderUDP { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Sender = sender, Error = 0 };
-            var result = new byte[20 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 20);
-            Buffer.BlockCopy(body, 0, result, 20, body.Length);
+            var result = new byte[Protocol.HeaderUdpSize + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, Protocol.HeaderUdpSize);
+            Buffer.BlockCopy(body, 0, result, Protocol.HeaderUdpSize, body.Length);
             return result;
         }
     }
@@ -240,9 +247,9 @@ namespace Zlink
         {
             var body = Encode();
             var hdr = new Sys_PackHeader { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Error = errorCode };
-            var result = new byte[16 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 16);
-            Buffer.BlockCopy(body, 0, result, 16, body.Length);
+            var result = new byte[Protocol.HeaderSize + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, Protocol.HeaderSize);
+            Buffer.BlockCopy(body, 0, result, Protocol.HeaderSize, body.Length);
             return result;
         }
 
@@ -250,9 +257,9 @@ namespace Zlink
         {
             var body = Encode();
             var hdr = new Sys_PackHeaderUDP { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Sender = sender, Error = 0 };
-            var result = new byte[20 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 20);
-            Buffer.BlockCopy(body, 0, result, 20, body.Length);
+            var result = new byte[Protocol.HeaderUdpSize + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, Protocol.HeaderUdpSize);
+            Buffer.BlockCopy(body, 0, result, Protocol.HeaderUdpSize, body.Length);
             return result;
         }
     }
@@ -272,9 +279,9 @@ namespace Zlink
         {
             var body = Encode();
             var hdr = new Sys_PackHeader { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Error = errorCode };
-            var result = new byte[16 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 16);
-            Buffer.BlockCopy(body, 0, result, 16, body.Length);
+            var result = new byte[Protocol.HeaderSize + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, Protocol.HeaderSize);
+            Buffer.BlockCopy(body, 0, result, Protocol.HeaderSize, body.Length);
             return result;
         }
 
@@ -282,9 +289,9 @@ namespace Zlink
         {
             var body = Encode();
             var hdr = new Sys_PackHeaderUDP { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Sender = sender, Error = 0 };
-            var result = new byte[20 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 20);
-            Buffer.BlockCopy(body, 0, result, 20, body.Length);
+            var result = new byte[Protocol.HeaderUdpSize + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, Protocol.HeaderUdpSize);
+            Buffer.BlockCopy(body, 0, result, Protocol.HeaderUdpSize, body.Length);
             return result;
         }
     }
@@ -303,9 +310,9 @@ namespace Zlink
         {
             var body = Encode();
             var hdr = new Sys_PackHeader { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Error = errorCode };
-            var result = new byte[16 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 16);
-            Buffer.BlockCopy(body, 0, result, 16, body.Length);
+            var result = new byte[Protocol.HeaderSize + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, Protocol.HeaderSize);
+            Buffer.BlockCopy(body, 0, result, Protocol.HeaderSize, body.Length);
             return result;
         }
 
@@ -313,9 +320,9 @@ namespace Zlink
         {
             var body = Encode();
             var hdr = new Sys_PackHeaderUDP { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Sender = sender, Error = 0 };
-            var result = new byte[20 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 20);
-            Buffer.BlockCopy(body, 0, result, 20, body.Length);
+            var result = new byte[Protocol.HeaderUdpSize + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, Protocol.HeaderUdpSize);
+            Buffer.BlockCopy(body, 0, result, Protocol.HeaderUdpSize, body.Length);
             return result;
         }
     }
@@ -334,9 +341,9 @@ namespace Zlink
         {
             var body = Encode();
             var hdr = new Sys_PackHeader { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Error = errorCode };
-            var result = new byte[16 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 16);
-            Buffer.BlockCopy(body, 0, result, 16, body.Length);
+            var result = new byte[Protocol.HeaderSize + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, Protocol.HeaderSize);
+            Buffer.BlockCopy(body, 0, result, Protocol.HeaderSize, body.Length);
             return result;
         }
 
@@ -344,9 +351,9 @@ namespace Zlink
         {
             var body = Encode();
             var hdr = new Sys_PackHeaderUDP { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Sender = sender, Error = 0 };
-            var result = new byte[20 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 20);
-            Buffer.BlockCopy(body, 0, result, 20, body.Length);
+            var result = new byte[Protocol.HeaderUdpSize + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, Protocol.HeaderUdpSize);
+            Buffer.BlockCopy(body, 0, result, Protocol.HeaderUdpSize, body.Length);
             return result;
         }
     }
@@ -367,9 +374,9 @@ namespace Zlink
         {
             var body = Encode();
             var hdr = new Sys_PackHeader { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Error = errorCode };
-            var result = new byte[16 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 16);
-            Buffer.BlockCopy(body, 0, result, 16, body.Length);
+            var result = new byte[Protocol.HeaderSize + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, Protocol.HeaderSize);
+            Buffer.BlockCopy(body, 0, result, Protocol.HeaderSize, body.Length);
             return result;
         }
 
@@ -377,9 +384,9 @@ namespace Zlink
         {
             var body = Encode();
             var hdr = new Sys_PackHeaderUDP { Version = Protocol.CurrentVersion, Command = GetID(), Length = (uint)body.Length, Sender = sender, Error = 0 };
-            var result = new byte[20 + body.Length];
-            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, 20);
-            Buffer.BlockCopy(body, 0, result, 20, body.Length);
+            var result = new byte[Protocol.HeaderUdpSize + body.Length];
+            Buffer.BlockCopy(hdr.Encode(), 0, result, 0, Protocol.HeaderUdpSize);
+            Buffer.BlockCopy(body, 0, result, Protocol.HeaderUdpSize, body.Length);
             return result;
         }
     }

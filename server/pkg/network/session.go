@@ -9,7 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/ZOITK/ZLink/engine/server-go/base"
+	"zlink/pkg/base"
 )
 
 // Session - 클라이언트 연결 세션 (Infrastructure SDK)
@@ -82,13 +82,15 @@ func (s *Session) HandleConnection(srv *Server) {
 // tcpParser - 내부용 패킷 읽기 도구
 func (s *Session) tcpParser(srv *Server) (uint32, []byte, error) {
 	pool := srv.BufferPool
-	hdrBuf := pool.GetHeader()
+	hdrSize := srv.TCPHeaderSize
+	hdrBuf := pool.GetHeader() // GetHeader는 충분한 크기(예: 64바이트)를 반환한다고 가정함
 	defer pool.PutHeader(hdrBuf)
 
-	if _, err := io.ReadFull(s.conn, hdrBuf); err != nil { return 0, nil, err }
+	// 정해진 크기만큼 헤더 읽기
+	if _, err := io.ReadFull(s.conn, hdrBuf[:hdrSize]); err != nil { return 0, nil, err }
 
 	hdr := &base.HeaderTCP{}
-	if err := hdr.Decode(hdrBuf); err != nil { return 0, nil, err }
+	if err := hdr.Decode(hdrBuf[:hdrSize]); err != nil { return 0, nil, err }
 
 	var body []byte
 	if hdr.Length > 0 {

@@ -1,81 +1,84 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+# =============================================================================
+# --- General / OS ---
+# =============================================================================
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp
+*.log
 
-# Virtual environments
-.venv
-venv/
-ENV/
-env/
-.env
-
-# IDE
+# =============================================================================
+# --- IDE / Editors ---
+# =============================================================================
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-.DS_Store
+.claude/
+.gemini/
 
-# Go
+# =============================================================================
+# --- Python ---
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+ENV/
+env/
+.env
+build/
+dist/
+*.egg-info/
+*.egg
+uv.lock
+.pytest_cache/
+
+# =============================================================================
+# --- Go ---
+# =============================================================================
 *.o
 *.a
 *.so
-.DS_Store
 out/
 bin/
 *.exe
 *.exe~
-*.dll
 *.dylib
-
-# Go binary
 /server_bin
-
-# Dependencies
 go.sum
 
-# OS
-.DS_Store
-Thumbs.db
+# =============================================================================
+# --- Unity / C# ---
+# =============================================================================
+# Unity Generated
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ibrary/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+MemoryCaptures/
+Recordings/
 
-# uv / Python package management
-uv.lock
-
-# Generated files (should be committed, but not build artifacts)
-# /templates/*/protocol/Protocol.* is committed (intentional)
-
-# Project-specific
-*.bak
-*.tmp
-*.log
-
-# Unity
-*.dll
-*.csproj
-Library/
+# C# / MSBuild
+bin/
 obj/
+*.csproj
+*.sln
+*.user
+*.userprefs
 
-.claude/
-.gemini/
+# DLLs (Global ignore except Plugins)
+*.dll
+!client-unity/zlink/Plugins/*.dll
+
+# =============================================================================
+# --- Project Specific ---
+# =============================================================================
+# Generator outputs are transient (local files are copied elsewhere)
+generator/output/

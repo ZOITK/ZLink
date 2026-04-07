@@ -21,25 +21,25 @@ type HeaderTCP struct {
 	Error   uint32
 }
 
-// Encode - 헤더를 바이트 슬라이스로 변환 (Big Endian)
+// Encode - 헤더를 바이트 슬라이스로 변환 (Little Endian)
 func (h *HeaderTCP) Encode() []byte {
 	buf := make([]byte, TCPHeaderSize)
-	binary.BigEndian.PutUint32(buf[0:4], h.Version)
-	binary.BigEndian.PutUint32(buf[4:8], h.Command)
-	binary.BigEndian.PutUint32(buf[8:12], h.Length)
-	binary.BigEndian.PutUint32(buf[12:16], h.Error)
+	binary.LittleEndian.PutUint32(buf[0:4], h.Version)
+	binary.LittleEndian.PutUint32(buf[4:8], h.Command)
+	binary.LittleEndian.PutUint32(buf[8:12], h.Length)
+	binary.LittleEndian.PutUint32(buf[12:16], h.Error)
 	return buf
 }
 
-// Decode - 바이트 슬라이스로부터 헤더 정보 추출 (Big Endian)
+// Decode - 바이트 슬라이스로부터 헤더 정보 추출 (Little Endian)
 func (h *HeaderTCP) Decode(data []byte) error {
 	if len(data) < TCPHeaderSize {
 		return fmt.Errorf("데이터 길이가 부족합니다 (필요: %d, 수신: %d)", TCPHeaderSize, len(data))
 	}
-	h.Version = binary.BigEndian.Uint32(data[0:4])
-	h.Command = binary.BigEndian.Uint32(data[4:8])
-	h.Length = binary.BigEndian.Uint32(data[8:12])
-	h.Error = binary.BigEndian.Uint32(data[12:16])
+	h.Version = binary.LittleEndian.Uint32(data[0:4])
+	h.Command = binary.LittleEndian.Uint32(data[4:8])
+	h.Length = binary.LittleEndian.Uint32(data[8:12])
+	h.Error = binary.LittleEndian.Uint32(data[12:16])
 	return nil
 }
 
@@ -53,26 +53,26 @@ type HeaderUDP struct {
 	Error   uint32
 }
 
-// Encode - 헤더를 바이트 슬라이스로 변환 (Big Endian)
+// Encode - 헤더를 바이트 슬라이스로 변환 (Little Endian)
 func (h *HeaderUDP) Encode() []byte {
 	buf := make([]byte, UDPHeaderSize)
-	binary.BigEndian.PutUint32(buf[0:4], h.Version)
-	binary.BigEndian.PutUint32(buf[4:8], h.Command)
-	binary.BigEndian.PutUint32(buf[8:12], h.Length)
-	binary.BigEndian.PutUint32(buf[12:16], h.Sender)
-	binary.BigEndian.PutUint32(buf[16:20], h.Error)
+	binary.LittleEndian.PutUint32(buf[0:4], h.Version)
+	binary.LittleEndian.PutUint32(buf[4:8], h.Command)
+	binary.LittleEndian.PutUint32(buf[8:12], h.Length)
+	binary.LittleEndian.PutUint32(buf[12:16], h.Sender)
+	binary.LittleEndian.PutUint32(buf[16:20], h.Error)
 	return buf
 }
 
-// Decode - 바이트 슬라이스로부터 헤더 정보 추출 (Big Endian)
+// Decode - 바이트 슬라이스로부터 헤더 정보 추출 (Little Endian)
 func (h *HeaderUDP) Decode(data []byte) error {
 	if len(data) < UDPHeaderSize {
 		return fmt.Errorf("데이터 길이가 부족합니다 (필요: %d, 수신: %d)", UDPHeaderSize, len(data))
 	}
-	h.Version = binary.BigEndian.Uint32(data[0:4])
-	h.Command = binary.BigEndian.Uint32(data[4:8])
-	h.Length = binary.BigEndian.Uint32(data[8:12])
-	h.Sender = binary.BigEndian.Uint32(data[12:16])
-	h.Error = binary.BigEndian.Uint32(data[16:20])
+	h.Version = binary.LittleEndian.Uint32(data[0:4])
+	h.Command = binary.LittleEndian.Uint32(data[4:8])
+	h.Length = binary.LittleEndian.Uint32(data[8:12])
+	h.Sender = binary.LittleEndian.Uint32(data[12:16])
+	h.Error = binary.LittleEndian.Uint32(data[16:20])
 	return nil
 }
