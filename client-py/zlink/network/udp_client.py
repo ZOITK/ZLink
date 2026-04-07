@@ -1,5 +1,5 @@
 import asyncio
-from ..protocol.header import HeaderUDP
+import struct
 from ..logger.logger import logger
 
 class AsyncUdpClientProtocol(asyncio.DatagramProtocol):
@@ -15,14 +15,14 @@ class AsyncUdpClientProtocol(asyncio.DatagramProtocol):
             return
 
         try:
-            header = HeaderUDP.decode(data[:20])
-            body = data[20:] if header.length > 0 else b""
-            
+            v, c, l, s, e = struct.unpack(">IIIII", data[:20])
+            body = data[20:] if l > 0 else b""
+
             if self.on_receive:
                 if asyncio.iscoroutinefunction(self.on_receive):
-                    asyncio.create_task(self.on_receive(header.command, body, header.sender, header.error))
+                    asyncio.create_task(self.on_receive(c, body, s, e))
                 else:
-                    self.on_receive(header.command, body, header.sender, header.error)
+                    self.on_receive(c, body, s, e)
         except Exception as e:
             logger.error(f"[UDP] 패킷 처리 오류: {e}")
 
@@ -50,11 +50,11 @@ class AsyncUdpClient:
     async def send(self, command, body=None, sender_idx=0, version=1):
         if not self.transport:
             return
-        
+
         try:
             body_bytes = body if body else b""
-            header = HeaderUDP(version, command, len(body_bytes), sender_idx, 0)
-            data = header.encode() + body_bytes
+            header_data = struct.pack(">IIIII", version, command, len(body_bytes), sender_idx, 0)
+            data = header_data + body_bytes
             self.transport.sendto(data)
         except Exception as e:
             logger.error(f"[UDP] 패킷 전송 오류: {e}")

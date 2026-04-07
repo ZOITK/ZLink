@@ -1,7 +1,7 @@
 import asyncio
 import io
 import logging
-from ..protocol.header import HeaderTCP
+import struct
 from ..logger.logger import logger
 
 class AsyncTcpClient:
@@ -50,7 +50,7 @@ class AsyncTcpClient:
             while self._Running:
                 # 1. 헤더 읽기 (16 bytes)
                 hdr_data = await self.Reader.readexactly(16)
-                v, c, l, e = HeaderTCP.decode(hdr_data).version, HeaderTCP.decode(hdr_data).command, HeaderTCP.decode(hdr_data).length, HeaderTCP.decode(hdr_data).error
+                v, c, l, e = struct.unpack(">IIII", hdr_data)
 
                 # 2. 바디 읽기
                 body = b""
