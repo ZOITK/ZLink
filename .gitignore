@@ -73,3 +73,7 @@ uv.lock
 
 .claude/
 .gemini/
+
+# Go workspace (development only)
+go.work
+go.work.sum
