@@ -1,8 +1,0 @@
-is_global = true
-build_property.RootNamespace = ZPP_Engine
-build_property.ProjectDir = /Users/zoitceo/work/104.zoit/zo-socket-framework/engine/client-csharp/
-build_property.EnableComHosting = 
-build_property.EnableGeneratedComInterfaceComImportInterop = 
-build_property.CsWinRTUseWindowsUIXamlProjections = false
-build_property.EffectiveAnalysisLevelStyle = 
-build_property.EnableCodeStyleSeverity = 

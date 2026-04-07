@@ -1,0 +1,53 @@
+metadata:
+  version: 1
+  categories: [system, auth, message]
+  protocols: [tcp]
+  types: [req, res, notify]
+
+# 전역 에러 코드
+global_errors:
+  - { name: None,         idx: 0, doc: "정상" }
+  - { name: InvalidValue, idx: 1, doc: "잘못된 값" }
+  - { name: Unauthorized, idx: 2, doc: "인증 필요" }
+  - { name: Server,       idx: 3, doc: "서버 오류" }
+
+definitions:
+  system:
+    packets:
+      - name: TCPHeartBit
+        idx: 1
+        proto: tcp
+        doc: "TCP Heartbeat / TCP 하트비트"
+        desc: "Keep-alive check / 연결 생존 확인"
+        req: { fields: { ServerTime: int64 } }
+        res: { fields: { ServerTime: int64 } }
+
+  auth:
+    packets:
+      - name: Login
+        idx: 1
+        proto: tcp
+        doc: "Login / 로그인"
+        desc: "Login with nickname / 닉네임으로 로그인"
+        pair:
+          req: { fields: { Nickname: string } }
+          res: { fields: { PlayerID: uint32, Result: uint32 } }
+
+  message:
+    packets:
+      - name: Send
+        idx: 1
+        proto: tcp
+        doc: "Send Message / 메시지 전송"
+        desc: "Send message to server / 서버로 메시지 전송"
+        pair:
+          req: { fields: { Message: string } }
+          res: { fields: { Result: uint32 } }
+
+      - name: ReceiveNotify
+        idx: 2
+        proto: tcp
+        type: notify
+        doc: "Receive Message / 메시지 수신"
+        desc: "Receive message from server / 서버로부터 메시지 수신"
+        fields: { PlayerID: uint32, Nickname: string, Message: string }

@@ -1,4 +1,0 @@
-/Users/zoitceo/work/100.moduta/zoit-moduta-socket/zo-socket-framework/engine/client-csharp/obj/Debug/netstandard2.0/ZPP_Engine.csproj.AssemblyReference.cache
-/Users/zoitceo/work/100.moduta/zoit-moduta-socket/zo-socket-framework/engine/client-csharp/obj/Debug/netstandard2.0/ZPP_Engine.GeneratedMSBuildEditorConfig.editorconfig
-/Users/zoitceo/work/100.moduta/zoit-moduta-socket/zo-socket-framework/engine/client-csharp/obj/Debug/netstandard2.0/ZPP_Engine.csproj.CoreCompileInputs.cache
-/Users/zoitceo/work/100.moduta/zoit-moduta-socket/zo-socket-framework/engine/client-csharp/obj/Debug/netstandard2.0/ZPP_Engine.sourcelink.json

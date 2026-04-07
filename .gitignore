@@ -70,3 +70,6 @@ uv.lock
 *.bak
 *.tmp
 *.log
+
+.claude/
+.gemini/

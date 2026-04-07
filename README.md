@@ -1,126 +1,111 @@
-# ZLink
+# ZLink / ZLink 소켓 프레임워크
 
-> 멀티플랫폼 게임 서버 프레임워크 - Go 서버, Python/C# 클라이언트를 한 번에 구축하세요.
+> Lightweight multi-platform socket framework for game development
+> 게임 개발을 위한 경량 멀티플랫폼 소켓 프레임워크
 
-[![GitHub](https://img.shields.io/badge/GitHub-ZOITK%2FZLink-blue)](https://github.com/ZOITK/ZLink)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## ✨ 특징
+## 📦 Overview / 개요
 
-- **멀티플랫폼 지원**: Go 서버, Python 클라이언트, Unity3D C# 클라이언트
-- **자동 프로젝트 생성**: `make server`/`make client` 명령어로 프로젝트 자동 생성
-- **MessagePack 기반**: 고속 직렬화/역직렬화
-- **프로토콜 정의 기반**: YAML 스키마로 프로토콜 정의 후 자동 코드 생성
-- **개발 친화적**: 로컬 개발 모드 지원, 템플릿 기반 프로젝트 생성
+ZLink is a modular socket communication framework consisting of three independent projects:
 
-## 🚀 빠른 시작
+ZLink는 3개의 독립적인 프로젝트로 구성된 모듈식 소켓 통신 프레임워크입니다:
 
-### 1단계: 저장소 클론
+- **[server-go](./server-go/)** - Go server with protocol generator / 프로토콜 제너레이터가 포함된 Go 서버
+- **[client-py](./client-py/)** - Python async client library / Python 비동기 클라이언트 라이브러리
+- **[client-unity](./client-unity/)** - Unity3D C# client / Unity3D C# 클라이언트
+
+---
+
+## 🚀 Getting Started / 시작하기
+
+Choose what you need and clone only that folder:
+
+필요한 것만 선택해서 clone하세요:
+
+### For Go Server Developers / Go 서버 개발자
 ```bash
-git clone https://github.com/ZOITK/ZLink.git
-cd ZLink
-```
-
-### 2단계: Go 서버 생성
-```bash
-make server OUTPUT=../my-server --engine-local ./engine/server-go
-cd ../my-server
-go mod tidy && go build -o server_bin main.go
-./server_bin
-```
-
-### 3단계: Python 클라이언트 생성
-```bash
-make client LANG=python OUTPUT=../my-client --engine-local ./engine/client-python
-cd ../my-client
-uv run main.py
-```
-
-### 4단계: Unity C# 클라이언트 생성
-```bash
-make client LANG=csharp OUTPUT=../my-unity
-```
-
-## 📦 설치 및 요구사항
-
-### 시스템 요구사항
-- **Go 1.25.6+** (서버 개발)
-- **Python 3.13+** (Python 클라이언트)
-- **uv** (Python 패키지 관리)
-- **Make** (프로젝트 생성 자동화)
-
-### 의존성 설치
-
-**macOS:**
-```bash
-brew install go
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-**Linux:**
-```bash
-# Go 설치: https://golang.org/dl/
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-**Windows:**
-```bash
-# Go 설치: https://golang.org/dl/
-irm https://astral.sh/uv/install.ps1 | iex
-```
-
-## 📁 프로젝트 구조
-
-```
-ZLink/
-├── engine/
-│   ├── server-go/
-│   │   ├── pkg/
-│   │   │   ├── network/     # TCP/UDP 네트워크
-│   │   │   ├── logger/      # 로깅
-│   │   │   └── config/      # 설정
-│   │   └── go.mod
-│   ├── client-python/       # Python 클라이언트
-│   │   ├── src/zoit_socket_client/
-│   │   └── pyproject.toml
-│   └── client-csharp/       # C# 클라이언트
-│       ├── logger/
-│       ├── network/
-│       └── protocol/
-├── generator/               # 프로토콜 생성기
-├── templates/               # 프로젝트 템플릿
-├── schemas/                 # 프로토콜 YAML 정의
-├── scripts/
-│   └── project_generator.py
-├── Makefile
-├── go.work
-└── README.md
-```
-
-## 🔧 명령어
-
-```bash
-# 프로토콜 생성
-make gen
-
-# 서버 생성 (로컬 개발)
-make server OUTPUT=../my-server --engine-local ./engine/server-go
-
-# 클라이언트 생성 (Python)
-make client LANG=python OUTPUT=../my-client --engine-local ./engine/client-python
-
-# 클라이언트 생성 (C#)
-make client LANG=csharp OUTPUT=../my-unity
-
-# 도움말
+git clone https://github.com/ZOITK/ZLink
+cd ZLink/server-go
 make help
 ```
 
-## 📖 문서
+### For Python Client Developers / Python 클라이언트 개발자
+```bash
+git clone https://github.com/ZOITK/ZLink
+cd ZLink/client-py
+uv sync
+```
 
-- [QUICKSTART.md](QUICKSTART.md) - 5분 안에 시작하기
-- [CONTRIBUTING.md](CONTRIBUTING.md) - 기여 가이드
+### For Unity Developers / Unity 개발자
+```bash
+git clone https://github.com/ZOITK/ZLink
+# Copy ZLink/client-unity/Assets to your project
+```
 
-## 📄 라이선스
+---
+
+## 📁 Repository Structure / 저장소 구조
+
+```
+ZLink/
+├── server-go/               # Go 서버 + 프로토콜 제너레이터
+│   ├── pkg/                 # 서버 코어 라이브러리
+│   ├── generator/           # 프로토콜 코드 생성기
+│   ├── schemas/             # YAML 프로토콜 정의
+│   ├── examples/
+│   │   ├── basic/           # 기본 에코 서버
+│   │   └── game/            # 숫자맞추기 게임
+│   └── README.md
+│
+├── client-py/               # Python 클라이언트
+│   ├── src/zlink/           # zlink 패키지
+│   ├── examples/
+│   │   ├── basic/           # 기본 에코 클라이언트
+│   │   └── game/            # 게임 클라이언트
+│   └── README.md
+│
+└── client-unity/            # Unity C# 클라이언트
+    ├── Assets/              # 클라이언트 코드
+    ├── examples/
+    │   ├── basic/
+    │   └── game/
+    └── README.md
+```
+
+---
+
+## 🔧 Features / 특징
+
+- **Protocol Auto-generation** / 프로토콜 자동생성
+  - Define in YAML, generate code automatically
+  - YAML로 정의하면 코드 자동생성
+
+- **Multi-language Support** / 다중 언어 지원
+  - Go, Python, C#/Unity
+
+- **TCP/UDP** / TCP/UDP 지원
+  - Flexible network protocols
+  - 유연한 네트워크 프로토콜
+
+- **MessagePack Serialization** / MessagePack 직렬화
+  - Fast binary serialization
+  - 빠른 바이너리 직렬화
+
+- **Async/Await Support** / Async/Await 지원
+  - Non-blocking network I/O
+  - 논블로킹 네트워크 I/O
+
+---
+
+## 📚 Documentation / 문서
+
+- [Go Server Guide](./server-go/README.md) - 서버 개발 가이드
+- [Python Client Guide](./client-py/README.md) - Python 클라이언트 가이드
+- [Unity Client Guide](./client-unity/README.md) - Unity 클라이언트 가이드
+
+---
+
+## 📄 License / 라이선스
 
 [MIT License](LICENSE)
