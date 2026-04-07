@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using Zlink.Logger;
+using Zlink;
+using Logger = Zlink.Logger;
 
 namespace Zlink.Network
 {
@@ -46,13 +47,13 @@ namespace Zlink.Network
                 _isConnected = true;
                 _cts = new CancellationTokenSource();
 
-                Logger.Logger.Info($"[TCP] 서버 연결 성공: {host}:{port}");
+                Logger.Info($"[TCP] 서버 연결 성공: {host}:{port}");
                 _ = ReceiveLoop(_cts.Token);
                 return true;
             }
             catch (Exception ex)
             {
-                Logger.Logger.Error($"[TCP] 연결 실패: {ex.Message}");
+                Logger.Error($"[TCP] 연결 실패: {ex.Message}");
                 return false;
             }
         }
@@ -66,7 +67,7 @@ namespace Zlink.Network
             }
             catch (Exception ex)
             {
-                Logger.Logger.Error($"[TCP] 전송 오류: {ex.Message}");
+                Logger.Error($"[TCP] 전송 오류: {ex.Message}");
                 Disconnect();
             }
         }
@@ -78,7 +79,7 @@ namespace Zlink.Network
             _cts?.Cancel();
             _stream?.Close();
             _client?.Close();
-            Logger.Logger.Info("[TCP] 연결 종료");
+            Logger.Info("[TCP] 연결 종료");
         }
 
         private async Task ReceiveLoop(CancellationToken token)
@@ -150,7 +151,7 @@ namespace Zlink.Network
             {
                 if (!token.IsCancellationRequested)
                 {
-                    Logger.Logger.Warn($"[TCP] 수신 루프 비정상 종료: {ex.Message}");
+                    Logger.Warn($"[TCP] 수신 루프 비정상 종료: {ex.Message}");
                     Disconnect();
                 }
             }

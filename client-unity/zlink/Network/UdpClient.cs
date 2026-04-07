@@ -3,7 +3,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using Zlink.Logger;
+using Zlink;
+using Logger = Zlink.Logger;
 
 namespace Zlink.Network
 {
@@ -49,13 +50,13 @@ namespace Zlink.Network
                 _isStarted = true;
                 _cts = new CancellationTokenSource();
 
-                Logger.Logger.Info($"[UDP] 클라이언트 시작: {host}:{port}");
+                Logger.Info($"[UDP] 클라이언트 시작: {host}:{port}");
                 _ = ReceiveLoop(_cts.Token);
                 return true;
             }
             catch (Exception ex)
             {
-                Logger.Logger.Error($"[UDP] 시작 실패: {ex.Message}");
+                Logger.Error($"[UDP] 시작 실패: {ex.Message}");
                 return false;
             }
         }
@@ -76,7 +77,7 @@ namespace Zlink.Network
             }
             catch (Exception ex)
             {
-                Logger.Logger.Error($"[UDP] 패킷 전송 오류: {ex.Message}");
+                Logger.Error($"[UDP] 패킷 전송 오류: {ex.Message}");
             }
         }
 
@@ -86,7 +87,7 @@ namespace Zlink.Network
             if (!_isStarted) return;
             
             // 실제로는 이제 Packet.BuildUDP() 결과를 Send(byte[])로 보내는 것을 권장함
-            Logger.Logger.Warn("[UDP] Direct Send is deprecated. Use Packet.BuildUDP() and Send(byte[]) instead.");
+            Logger.Warn("[UDP] Direct Send is deprecated. Use Packet.BuildUDP() and Send(byte[]) instead.");
         }
 
         private async Task ReceiveLoop(CancellationToken token)
@@ -149,7 +150,7 @@ namespace Zlink.Network
             {
                 if (!token.IsCancellationRequested)
                 {
-                    Logger.Logger.Warn($"[UDP] 수신 루프 종료: {ex.Message}");
+                    Logger.Warn($"[UDP] 수신 루프 종료: {ex.Message}");
                 }
             }
         }

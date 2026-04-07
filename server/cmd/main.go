@@ -8,7 +8,7 @@ import (
 	"sync"
 	"syscall"
 
-	"zlink/cmd/basic/protocol"
+	"zlink/cmd/protocol"
 	"zlink/pkg/config"
 	"zlink/pkg/logger"
 	"zlink/pkg/network"

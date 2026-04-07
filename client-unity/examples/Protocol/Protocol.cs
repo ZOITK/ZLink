@@ -69,14 +69,16 @@ namespace Zlink
 
             if (setUnmarshaler != null && addRecvCallback != null)
             {
-                setUnmarshaler.Invoke(engine, new object[] { new Func<uint, byte[], object>(_Unmarshal) });
+                // 람다식을 사용하여 명시적 델리게이트 생성 (델리게이트 타입 불일치 방지)
+                setUnmarshaler.Invoke(engine, new object[] { new Func<uint, byte[], object>((cmd, body) => _Unmarshal(cmd, body)) });
                 addRecvCallback.Invoke(engine, new object[] { callback });
             }
 
             if (setHeaderInfo != null)
             {
                 // 헤더 정보 설정 (TCP 헤더 크기 및 디코더 호출)
-                setHeaderInfo.Invoke(engine, new object[] { HeaderSize, new Func<byte[], object>(Sys_PackHeader.Decode) });
+                // 람다식을 사용하여 Sys_PackHeader(Struct)를 object로 박싱하여 전달
+                setHeaderInfo.Invoke(engine, new object[] { HeaderSize, new Func<byte[], object>(data => Sys_PackHeader.Decode(data)) });
             }
         }
 

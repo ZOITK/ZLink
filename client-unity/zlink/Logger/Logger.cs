@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace Zlink.Logger
+namespace Zlink
 {
     /// <summary>
     /// C# 클라이언트 로거 (Unity/Console 지원)
@@ -12,7 +12,7 @@ namespace Zlink.Logger
         public static void Info(string Message)
         {
 #if UNITY_2017_1_OR_NEWER
-            Debug.Log(Message);
+            UnityEngine.Debug.Log(Message);
 #else
             Console.WriteLine(Message);
 #endif

@@ -47,23 +47,22 @@ gen:
 	echo "✅ 생성 완료:"; \
 	echo "   - $(OUTPUT_DIR)/Protocol.go"; \
 	echo "   - $(OUTPUT_DIR)/Protocol.py"; \
-	echo "   - $(OUTPUT_DIR)/Protocol.cs"
+	echo "   - $(OUTPUT_DIR)/Protocol.cs"; \
+	echo "🚚 프로젝트 배포 중..."; \
+	cp $(OUTPUT_DIR)/Protocol.go ../server/cmd/protocol/; \
+	cp $(OUTPUT_DIR)/Protocol.py ../client-py/examples/protocol/; \
+	cp $(OUTPUT_DIR)/Protocol.cs ../client-unity/examples/Protocol/; \
+	echo "✅ 배포 완료!"
 
 help:
 	@echo "ZLink Protocol Generator - 사용 가능한 명령어"
 	@echo ""
 	@echo "프로토콜 생성:"
-	@echo "  make gen                스키마 선택해서 Protocol.* 생성"
+	@echo "  make gen                스키마 선택해서 Protocol.* 생성 및 각 프로젝트 배포"
 	@echo ""
 	@echo "도움말:"
 	@echo "  make help               이 메시지 출력"
 	@echo ""
 	@echo "📝 사용 예시:"
-	@echo "  # 프로토콜 생성"
+	@echo "  # 프로토콜 생성 및 자동 배포"
 	@echo "  make gen"
-	@echo ""
-	@echo "  # 생성된 파일을 각 프로젝트에 복사"
-	@echo "  cp output/Protocol.go ../server/cmd/basic/protocol/"
-	@echo "  cp output/Protocol.go ../server/cmd/game/protocol/"
-	@echo "  cp output/Protocol.py ../client-py/examples/basic/protocol/"
-	@echo "  cp output/Protocol.cs ../client-unity/examples/basic/Protocol/"
