@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv
+venv/
+ENV/
+env/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Go
+*.o
+*.a
+*.so
+.DS_Store
+out/
+bin/
+*.exe
+*.exe~
+*.dll
+*.dylib
+
+# Go binary
+/server_bin
+
+# Dependencies
+go.sum
+
+# OS
+.DS_Store
+Thumbs.db
+
+# uv / Python package management
+uv.lock
+
+# Generated files (should be committed, but not build artifacts)
+# /templates/*/protocol/Protocol.* is committed (intentional)
+
+# Project-specific
+*.bak
+*.tmp
+*.log
