@@ -48,11 +48,15 @@ gen:
 	echo "   - $(OUTPUT_DIR)/Protocol.go"; \
 	echo "   - $(OUTPUT_DIR)/Protocol.py"; \
 	echo "   - $(OUTPUT_DIR)/Protocol.cs"; \
-	echo "🚚 프로젝트 배포 중..."; \
-	cp $(OUTPUT_DIR)/Protocol.go ../server/cmd/protocol/; \
-	cp $(OUTPUT_DIR)/Protocol.py ../client-py/examples/protocol/; \
-	cp $(OUTPUT_DIR)/Protocol.cs ../client-unity/examples/Protocol/; \
-	echo "✅ 배포 완료!"
+	echo "🚚 프로젝트 배포 및 SDK 동기화 중..."; \
+	# 1. SDK 내부로 프로토콜 배포 \
+	cp $(OUTPUT_DIR)/Protocol.go ../sdk/server/zlink/protocol/; \
+	cp $(OUTPUT_DIR)/Protocol.py ../sdk/client/py/zlink/protocol/; \
+	cp $(OUTPUT_DIR)/Protocol.cs ../sdk/client/unity/zlink/protocol/; \
+	# 2. 예제 프로젝트로 최신 SDK 동기화 (사용자 편의성) \
+	mkdir -p ../examples/client-py/zlink && cp -R ../sdk/client/py/zlink/* ../examples/client-py/zlink/; \
+	mkdir -p ../examples/client-unity/Assets/zlink && cp -R ../sdk/client/unity/zlink/* ../examples/client-unity/Assets/zlink/; \
+	echo "✅ 배포 및 동기화 완료!"
 
 help:
 	@echo "ZLink Protocol Generator - 사용 가능한 명령어"

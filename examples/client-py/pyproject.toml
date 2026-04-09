@@ -1,0 +1,14 @@
+[project]
+name = "client-py"
+version = "0.1.0"
+description = "ZLink Framework 기반 Python 클라이언트 예제"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "msgspec>=0.18.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0.0",
+]
