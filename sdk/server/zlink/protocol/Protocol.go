@@ -1,6 +1,6 @@
 // 자동 생성된 프로토콜
 // 버전: 1
-// [ 2026-04-09 : 15:57:27 ] 자동 생성됨 (zlink-protocol-gen)
+// [ 2026-04-09 : 16:28:48 ] 자동 생성됨 (zlink-protocol-gen)
 
 package protocol
 
@@ -94,22 +94,14 @@ type Msg_MessageReceiveNotify struct {
 }
 
 // =========================================================================
-// --- 공통 인터페이스 ---
+// --- 공통 인터페이스 (ZLink Standard) ---
 // =========================================================================
 
-// ISession - 엔진 세션 기능을 추상화한 인터페이스 (비즈니스 로직용)
-type ISession interface {
-	ID() uint32
-	SendRaw(data []byte) error
-	Close()
-	GetMetadata() any
-	SetMetadata(data any)
-}
+// ISession - 이제 base 패키지를 통해 규격화된 인터페이스를 참조합니다.
+type ISession = base.ISession
 
-// Packet - 모든 패킷 구조체가 구현하는 인터페이스
-type Packet interface {
-	GetID() uint32
-}
+// Packet - 이제 base 패키지를 통해 규격화된 인터페이스를 참조합니다.
+type Packet = base.Packet
 
 // =========================================================================
 // --- 중앙 집중형 디스패처 (Registration) ---

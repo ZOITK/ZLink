@@ -12,16 +12,9 @@ import (
 	 "github.com/ZOITK/ZLink/sdk/server/zlink/base"
 )
 
-// ISession - 신규 SDK 엔진의 세션 인터페이스입니다.
-// 비즈니스 로직(Handler)은 실제 Session 구조체 대신 이 인터페이스를 참조하여 결합도를 낮춥니다.
-type ISession interface {
-	ID() uint32
-	SendRaw(data []byte) error
-	SendRawUDP(data []byte, addr string, port int) error
-	Close()
-	GetMetadata() any
-	SetMetadata(data any)
-}
+// ISession - 이제 base 패키지의 ISession을 사용합니다.
+// 비즈니스 로직(Handler)은 실제 Session 구조체 대신 base.ISession 인터페이스를 참조합니다.
+type ISession = base.ISession
 
 // Session - 클라이언트 연결 세션 (Infrastructure SDK)
 type Session struct {
