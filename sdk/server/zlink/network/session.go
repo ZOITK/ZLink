@@ -12,8 +12,20 @@ import (
 	"zlink/base"
 )
 
+// ISession - 신규 SDK 엔진의 세션 인터페이스입니다.
+// 비즈니스 로직(Handler)은 실제 Session 구조체 대신 이 인터페이스를 참조하여 결합도를 낮춥니다.
+type ISession interface {
+	ID() uint32
+	SendRaw(data []byte) error
+	SendRawUDP(data []byte, addr string, port int) error
+	Close()
+	GetMetadata() any
+	SetMetadata(data any)
+}
+
 // Session - 클라이언트 연결 세션 (Infrastructure SDK)
 type Session struct {
+	id         uint32
 	mu         sync.Mutex
 	conn       net.Conn
 	udpServer  *UDPServer
@@ -23,11 +35,15 @@ type Session struct {
 }
 
 // NewSession - 새 세션 생성
-func NewSession(conn net.Conn) *Session {
+func NewSession(id uint32, conn net.Conn) *Session {
 	addr := ""
 	if conn != nil { addr = conn.RemoteAddr().String() }
-	return &Session{ conn: conn, RemoteAddr: addr }
+	return &Session{ id: id, conn: conn, RemoteAddr: addr }
 }
+
+func (s *Session) ID() uint32 { return s.id }
+func (s *Session) GetMetadata() any { return s.Metadata }
+func (s *Session) SetMetadata(data any) { s.Metadata = data }
 
 func (s *Session) SetUDPServer(server *UDPServer) { s.udpServer = server }
 func (s *Session) GetConn() net.Conn { return s.conn }
@@ -59,7 +75,7 @@ func (s *Session) HandleConnection(srv *Server) {
 		// 1. 패킷 파싱 (엔진 기본 파서 사용)
 		cmd, body, err := s.tcpParser(srv)
 		if err != nil {
-			if err != io.EOF { slog.Warn("[Session] 데이터 읽기 실패", "err", err, "addr", s.RemoteAddr) }
+			if err != io.EOF { slog.Warn("[zLink/Session] 데이터 읽기 실패", "err", err, "addr", s.RemoteAddr) }
 			break
 		}
 		

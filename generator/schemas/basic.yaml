@@ -38,6 +38,14 @@ definitions:
         req: { fields: { ServerTime: int64 } }
         res: { fields: { ServerTime: int64 } }
 
+      - name: UDPHeartBit
+        idx: 2
+        proto: udp
+        doc: "UDP Heartbeat / UDP 하트비트"
+        desc: "Keep-alive check / 연결 생존 확인"
+        req: { fields: { Timestamp: int64 } }
+        res: { fields: { Timestamp: int64 } }
+
   auth:
     packets:
       - name: Login

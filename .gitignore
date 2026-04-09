@@ -75,10 +75,13 @@ obj/
 
 # DLLs (Global ignore except Plugins)
 *.dll
-!client-unity/zlink/Plugins/*.dll
+!sdk/client/unity/zlink/sdk/Plugins/*.dll
+!examples/client-unity/zlink/sdk/Plugins/*.dll
 
 # =============================================================================
 # --- Project Specific ---
 # =============================================================================
 # Generator outputs are transient (local files are copied elsewhere)
 generator/output/
+
+generator/schemas/moduta.yaml

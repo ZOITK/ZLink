@@ -4,17 +4,19 @@ package network
 import (
 	"log/slog"
 	"net"
+	"sync/atomic"
 
 	"zlink/base"
-	"zlink/config"
 )
 
 // Server - 프레임워크 통합 서버 객체
 type Server struct {
-	Config     *config.Config
-	TCP        *TCPServer
-	UDP        *UDPServer
-	BufferPool *BufferPool
+	TCPPort       int
+	UDPPort       int
+	TCP           *TCPServer
+	UDP           *UDPServer
+	BufferPool    *BufferPool
+	lastSessionID uint32
 	
 	// Unmarshaler - 바이트를 객체로 바꾸는 함수 (제네레이터가 제공)
 	Unmarshaler func(cmd uint32, body []byte) (any, error)
@@ -36,9 +38,11 @@ type Server struct {
 }
 
 // NewServer - 새 서버 인스턴스 생성
-func NewServer(cfg *config.Config) *Server {
+// 사용자의 의견에 따라 포트 정보를 외부(애플리케이션)에서 직접 주입받습니다.
+func NewServer(tcpPort, udpPort int) *Server {
 	s := &Server{
-		Config:          cfg,
+		TCPPort:         tcpPort,
+		UDPPort:         udpPort,
 		BufferPool:      NewBufferPool(),
 		OnRecvCallbacks: make([]func(*Session, any), 0),
 		TCPHeaderSize:   base.TCPHeaderSize, // 기본값
@@ -46,9 +50,9 @@ func NewServer(cfg *config.Config) *Server {
 	}
 	
 	// TCP 서버 초기화 시 세션 라이프사이클 자동화 핸들러 등록
-	s.TCP = NewTCPServer("0.0.0.0", cfg.TCPPort, s.handleNewConnection)
+	s.TCP = NewTCPServer("0.0.0.0", tcpPort, s.handleNewConnection)
 	
-	s.UDP = NewUDPServer("0.0.0.0", cfg.UDPPort, func(hdr *base.HeaderUDP, body []byte, addr *net.UDPAddr) {
+	s.UDP = NewUDPServer("0.0.0.0", udpPort, func(hdr *base.HeaderUDP, body []byte, addr *net.UDPAddr) {
 		if s.OnPacket != nil { s.OnPacket(hdr, body, addr) }
 	})
 	
@@ -57,31 +61,38 @@ func NewServer(cfg *config.Config) *Server {
 
 // handleNewConnection - 내부용 세션 라이프사이클 관리자
 func (s *Server) handleNewConnection(conn net.Conn) {
-	// 1. 저수준 훅 호출 (커스텀 처리가 필요한 경우)
+	// 1. 소켓 연결 즉시 로깅
+	remoteAddr := conn.RemoteAddr().String()
+	slog.Info("[zLink/Engine] 새로운 TCP 연결 수락", "addr", remoteAddr)
+
+	// 2. 저수준 훅 호출 (커스텀 처리가 필요한 경우)
 	if s.OnConnect != nil {
 		s.OnConnect(conn)
 		return
 	}
 
-	// 2. 표준 세션 생성 및 초기화
-	sess := NewSession(conn)
+	// 3. 표준 세션 생성 및 초기화
+	id := atomic.AddUint32(&s.lastSessionID, 1)
+	sess := NewSession(id, conn)
 	sess.SetUDPServer(s.UDP)
 
-	// 3. 엔진 레벨 세션 오픈 이벤트
+	// 4. 엔진 레벨 세션 오픈 이벤트
 	if s.OnSessionOpen != nil {
 		s.OnSessionOpen(sess)
 	}
 
-	// 4. 통신 루프 시작 (블로킹)
+	// 5. 통신 루프 시작 (블로킹)
+	slog.Info("[zLink/Session] 세션 통신 시작", "session_id", id, "addr", remoteAddr)
 	sess.HandleConnection(s)
 
-	// 5. 엔진 레벨 세션 종료 이벤트
+	// 6. 엔진 레벨 세션 종료 이벤트
 	if s.OnSessionClose != nil {
 		s.OnSessionClose(sess)
 	}
 
-	// 6. 자원 정리
+	// 7. 자원 정리 및 종료 로깅
 	sess.Close()
+	slog.Info("[zLink/Session] 세션 연결 종료", "session_id", id, "addr", remoteAddr)
 }
 
 // AddRecvCallback - 새로운 패킷 리스너를 추가합니다 (+= 개념)
@@ -104,7 +115,7 @@ func (s *Server) SetHeaderSize(tcpSize, udpSize int) {
 
 // Start, Stop 생략...
 func (s *Server) Start() error {
-	slog.Info("[Engine] 서버 가동", "tcp", s.Config.TCPPort, "udp", s.Config.UDPPort)
+	slog.Info("[zLink/Engine] 서버 가동 시작", "tcp", s.TCPPort, "udp", s.UDPPort)
 	if err := s.UDP.Listen(); err != nil { return err }
 	if err := s.TCP.Listen(); err != nil { return err }
 	go s.UDP.Start()
@@ -115,5 +126,5 @@ func (s *Server) Start() error {
 func (s *Server) Stop() {
 	s.TCP.Stop()
 	s.UDP.Stop()
-	slog.Info("[Engine] 서버 중지 완료")
+	slog.Info("[zLink/Engine] 서버 중지 완료")
 }

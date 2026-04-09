@@ -50,7 +50,7 @@ func (s *UDPServer) Listen() error {
 		return err
 	}
 	s.conn = conn
-	slog.Info("[UDPServer] 포트 바인딩 완료", "addr", addr)
+	slog.Info("[zLink/UDPServer] 포트 바인딩 완료", "addr", addr)
 	return nil
 }
 
@@ -69,7 +69,7 @@ func (s *UDPServer) Start() error {
 			if strings.Contains(err.Error(), "use of closed network connection") {
 				return nil
 			}
-			slog.Warn("[UDPServer] ReadFromUDP 오류", "err", err)
+			slog.Warn("[zLink/UDPServer] ReadFromUDP 오류", "err", err)
 			continue
 		}
 

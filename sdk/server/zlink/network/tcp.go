@@ -44,7 +44,7 @@ func (s *TCPServer) Listen() error {
 		return err
 	}
 	s.listener = ln
-	slog.Info("[TCPServer] 포트 바인딩 완료", "addr", addr)
+	slog.Info("[zLink/TCPServer] 포트 바인딩 완료", "addr", addr)
 	return nil
 }
 
@@ -62,7 +62,7 @@ func (s *TCPServer) Start() error {
 			if strings.Contains(err.Error(), "closed network connection") {
 				return nil
 			}
-			slog.Warn("[TCPServer] Accept 오류", "err", err)
+			slog.Warn("[zLink/TCPServer] Accept 오류", "err", err)
 			continue
 		}
 

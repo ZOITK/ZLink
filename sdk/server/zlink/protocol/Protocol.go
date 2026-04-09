@@ -31,7 +31,9 @@ const (
 // Packet IDs (Cmd_)
 const (
 	Cmd_SystemTCPHeartBitReq uint32 = 11110001 // TCP Heartbeat / TCP 하트비트
+	Cmd_SystemUDPHeartBitReq uint32 = 11110002 // UDP Heartbeat / UDP 하트비트
 	Cmd_SystemTCPHeartBitRes uint32 = 11120001 // TCP Heartbeat / TCP 하트비트
+	Cmd_SystemUDPHeartBitRes uint32 = 11120002 // UDP Heartbeat / UDP 하트비트
 	Cmd_AuthLoginReq uint32 = 12110001 // Login / 로그인
 	Cmd_AuthLoginRes uint32 = 12120001 // Login / 로그인
 	Cmd_MessageSendReq uint32 = 13110001 // Send Message / 메시지 전송
@@ -47,10 +49,20 @@ type Msg_SystemTCPHeartBitReq struct {
 	_msgpack struct{} `msgpack:",as_array"` // 데이터 압축 전송용
 	ServerTime int64 `msgpack:"ServerTime"`
 }
+// Msg_SystemUDPHeartBitReq - UDP Heartbeat / UDP 하트비트
+type Msg_SystemUDPHeartBitReq struct {
+	_msgpack struct{} `msgpack:",as_array"` // 데이터 압축 전송용
+	Timestamp int64 `msgpack:"Timestamp"`
+}
 // Msg_SystemTCPHeartBitRes - TCP Heartbeat / TCP 하트비트
 type Msg_SystemTCPHeartBitRes struct {
 	_msgpack struct{} `msgpack:",as_array"` // 데이터 압축 전송용
 	ServerTime int64 `msgpack:"ServerTime"`
+}
+// Msg_SystemUDPHeartBitRes - UDP Heartbeat / UDP 하트비트
+type Msg_SystemUDPHeartBitRes struct {
+	_msgpack struct{} `msgpack:",as_array"` // 데이터 압축 전송용
+	Timestamp int64 `msgpack:"Timestamp"`
 }
 // Msg_AuthLoginReq - Login / 로그인
 type Msg_AuthLoginReq struct {
@@ -127,8 +139,16 @@ func _Unmarshal(cmd uint32, body []byte) (any, error) {
 		msg := &Msg_SystemTCPHeartBitReq{}
 		if err := msg.Decode(body); err != nil { return nil, err }
 		return msg, nil
+	case Cmd_SystemUDPHeartBitReq:
+		msg := &Msg_SystemUDPHeartBitReq{}
+		if err := msg.Decode(body); err != nil { return nil, err }
+		return msg, nil
 	case Cmd_SystemTCPHeartBitRes:
 		msg := &Msg_SystemTCPHeartBitRes{}
+		if err := msg.Decode(body); err != nil { return nil, err }
+		return msg, nil
+	case Cmd_SystemUDPHeartBitRes:
+		msg := &Msg_SystemUDPHeartBitRes{}
 		if err := msg.Decode(body); err != nil { return nil, err }
 		return msg, nil
 	case Cmd_AuthLoginReq:
@@ -212,6 +232,24 @@ func (p *Msg_SystemTCPHeartBitReq) BuildUDP(sender uint32) []byte {
 	hdr := &Sys_PackHeaderUDP{Version: uint32(CurrentVersion), Command: p.GetID(), Length: uint32(len(body)), Sender: sender, Error: 0}
 	return append(hdr.Encode(), body...)
 }
+func (r *Msg_SystemUDPHeartBitReq) Encode() ([]byte, error) {
+	return msgpack.Marshal(r)
+}
+
+func (r *Msg_SystemUDPHeartBitReq) Decode(data []byte) error {
+	return msgpack.Unmarshal(data, r)
+}
+func (p *Msg_SystemUDPHeartBitReq) GetID() uint32 { return Cmd_SystemUDPHeartBitReq }
+func (p *Msg_SystemUDPHeartBitReq) BuildTCP(errCode ErrorCode) []byte {
+	body, _ := p.Encode()
+	hdr := &Sys_PackHeader{Version: uint32(CurrentVersion), Command: p.GetID(), Length: uint32(len(body)), Error: uint32(errCode)}
+	return append(hdr.Encode(), body...)
+}
+func (p *Msg_SystemUDPHeartBitReq) BuildUDP(sender uint32) []byte {
+	body, _ := p.Encode()
+	hdr := &Sys_PackHeaderUDP{Version: uint32(CurrentVersion), Command: p.GetID(), Length: uint32(len(body)), Sender: sender, Error: 0}
+	return append(hdr.Encode(), body...)
+}
 func (r *Msg_SystemTCPHeartBitRes) Encode() ([]byte, error) {
 	return msgpack.Marshal(r)
 }
@@ -226,6 +264,24 @@ func (p *Msg_SystemTCPHeartBitRes) BuildTCP(errCode ErrorCode) []byte {
 	return append(hdr.Encode(), body...)
 }
 func (p *Msg_SystemTCPHeartBitRes) BuildUDP(sender uint32) []byte {
+	body, _ := p.Encode()
+	hdr := &Sys_PackHeaderUDP{Version: uint32(CurrentVersion), Command: p.GetID(), Length: uint32(len(body)), Sender: sender, Error: 0}
+	return append(hdr.Encode(), body...)
+}
+func (r *Msg_SystemUDPHeartBitRes) Encode() ([]byte, error) {
+	return msgpack.Marshal(r)
+}
+
+func (r *Msg_SystemUDPHeartBitRes) Decode(data []byte) error {
+	return msgpack.Unmarshal(data, r)
+}
+func (p *Msg_SystemUDPHeartBitRes) GetID() uint32 { return Cmd_SystemUDPHeartBitRes }
+func (p *Msg_SystemUDPHeartBitRes) BuildTCP(errCode ErrorCode) []byte {
+	body, _ := p.Encode()
+	hdr := &Sys_PackHeader{Version: uint32(CurrentVersion), Command: p.GetID(), Length: uint32(len(body)), Error: uint32(errCode)}
+	return append(hdr.Encode(), body...)
+}
+func (p *Msg_SystemUDPHeartBitRes) BuildUDP(sender uint32) []byte {
 	body, _ := p.Encode()
 	hdr := &Sys_PackHeaderUDP{Version: uint32(CurrentVersion), Command: p.GetID(), Length: uint32(len(body)), Sender: sender, Error: 0}
 	return append(hdr.Encode(), body...)
