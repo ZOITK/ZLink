@@ -13,7 +13,7 @@ type ISession interface {
 	SetMetadata(data any)
 }
 
-// Packet - 모든 패킷 구조체가 구현하는 인터페이스
-type Packet interface {
+// IPacket - 모든 패킷 구조체가 구현하는 인터페이스
+type IPacket interface {
 	GetID() uint32
 }

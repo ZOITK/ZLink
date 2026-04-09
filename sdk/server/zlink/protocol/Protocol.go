@@ -1,6 +1,6 @@
 // 자동 생성된 프로토콜
 // 버전: 1
-// [ 2026-04-09 : 16:36:28 ] 자동 생성됨 (zlink-protocol-gen)
+// [ 2026-04-09 : 16:38:04 ] 자동 생성됨 (zlink-protocol-gen)
 
 package protocol
 
@@ -100,8 +100,8 @@ type Msg_MessageReceiveNotify struct {
 // ISession - 이제 base 패키지를 통해 규격화된 인터페이스를 참조합니다.
 type ISession = base.ISession
 
-// Packet - 이제 base 패키지를 통해 규격화된 인터페이스를 참조합니다.
-type Packet = base.Packet
+// IPacket - 이제 base 패키지를 통해 규격화된 인터페이스를 참조합니다.
+type IPacket = base.IPacket
 
 // =========================================================================
 // --- 중앙 집중형 디스패처 (Registration) ---
