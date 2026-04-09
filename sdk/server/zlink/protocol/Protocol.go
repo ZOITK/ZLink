@@ -99,8 +99,11 @@ type Msg_MessageReceiveNotify struct {
 
 // ISession - 엔진 세션 기능을 추상화한 인터페이스 (비즈니스 로직용)
 type ISession interface {
+	ID() uint32
 	SendRaw(data []byte) error
 	Close()
+	GetMetadata() any
+	SetMetadata(data any)
 }
 
 // Packet - 모든 패킷 구조체가 구현하는 인터페이스
