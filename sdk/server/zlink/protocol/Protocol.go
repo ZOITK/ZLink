@@ -1,6 +1,6 @@
 // 자동 생성된 프로토콜
 // 버전: 1
-// [ 2026-04-09 : 16:28:48 ] 자동 생성됨 (zlink-protocol-gen)
+// [ 2026-04-09 : 16:36:28 ] 자동 생성됨 (zlink-protocol-gen)
 
 package protocol
 
@@ -117,7 +117,11 @@ func Register(srv any, callback func(ISession, any)) {
 	}
 
 	if s, ok := srv.(engine); ok {
-		s.SetHeaderSize(HeaderSize, HeaderUdpSize)
+		s.SetHeaderInfo(HeaderSize, HeaderUdpSize, func(data []byte) (uint32, uint32, uint32, error) {
+			hdr := &Sys_PackHeader{}
+			if err := hdr.Decode(data); err != nil { return 0, 0, 0, err }
+			return hdr.Command, hdr.Length, hdr.Error, nil
+		})
 		// 파싱 로직은 최초 1회만 등록됨 (엔진 내부에서 처리)
 		s.SetUnmarshaler(_Unmarshal)
 		// 콜백 리스트에 추가

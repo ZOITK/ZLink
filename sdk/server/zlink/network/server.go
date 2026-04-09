@@ -35,6 +35,9 @@ type Server struct {
 	// 헤더 정보 (제네레이터에 의해 설정됨)
 	TCPHeaderSize int
 	UDPHeaderSize int
+
+	// TCPHeaderDecoder - 주입받은 헤더 해석용 함수 (바이트 -> 명령ID, 바디길이, 에러코드)
+	TCPHeaderDecoder func(data []byte) (uint32, uint32, uint32, error)
 }
 
 // NewServer - 새 서버 인스턴스 생성
@@ -52,8 +55,12 @@ func NewServer(tcpPort, udpPort int) *Server {
 	// TCP 서버 초기화 시 세션 라이프사이클 자동화 핸들러 등록
 	s.TCP = NewTCPServer("0.0.0.0", tcpPort, s.handleNewConnection)
 	
-	s.UDP = NewUDPServer("0.0.0.0", udpPort, func(hdr *base.HeaderUDP, body []byte, addr *net.UDPAddr) {
-		if s.OnPacket != nil { s.OnPacket(hdr, body, addr) }
+	s.UDP = NewUDPServer("0.0.0.0", udpPort, func(data []byte, addr *net.UDPAddr) {
+		// [정규화] 저수준 패킷 훅이 있으면 원시 데이터 그대로 전달
+		if s.OnPacket != nil {
+			// 기존 OnPacket의 hdr 인자를 nil로 보내거나, OnPacket 자체의 시그니처 변경 고려 (현재는 nil 전달)
+			s.OnPacket(nil, data, addr)
+		}
 	})
 	
 	return s
@@ -107,10 +114,11 @@ func (s *Server) SetUnmarshaler(u func(uint32, []byte) (any, error)) {
 	s.Unmarshaler = u
 }
 
-// SetHeaderSize - 제네레이터가 호출하여 헤더 크기를 설정합니다.
-func (s *Server) SetHeaderSize(tcpSize, udpSize int) {
+// SetHeaderInfo - 제네레이터가 호출하여 헤더 크기와 디코더를 설정합니다.
+func (s *Server) SetHeaderInfo(tcpSize, udpSize int, decoder func([]byte) (uint32, uint32, uint32, error)) {
 	s.TCPHeaderSize = tcpSize
 	s.UDPHeaderSize = udpSize
+	s.TCPHeaderDecoder = decoder
 }
 
 // Start, Stop 생략...

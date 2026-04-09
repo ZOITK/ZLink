@@ -24,12 +24,12 @@ type UDPServer struct {
 	conn     *net.UDPConn
 	Stats    UDPStats
 	
-	// 패킷 수신 시 처리할 핸들러
-	onPacket func(hdr *base.HeaderUDP, body []byte, addr *net.UDPAddr)
+	// 패킷 수신 시 처리할 핸들러 (원시 데이터와 주소만 전달)
+	onPacket func(data []byte, addr *net.UDPAddr)
 }
 
 // NewUDPServer - UDP 서버 인스턴스 생성
-func NewUDPServer(host string, port int, onPacket func(hdr *base.HeaderUDP, body []byte, addr *net.UDPAddr)) *UDPServer {
+func NewUDPServer(host string, port int, onPacket func(data []byte, addr *net.UDPAddr)) *UDPServer {
 	return &UDPServer{
 		host:     host,
 		port:     port,
@@ -75,18 +75,8 @@ func (s *UDPServer) Start() error {
 
 		s.Stats.PacketsRecv.Add(1)
 		
-		// 최소 헤더 크기 확인
-		if n < base.UDPHeaderSize {
-			continue
-		}
-
-		hdr := &base.HeaderUDP{}
-		if err := hdr.Decode(buf[:base.UDPHeaderSize]); err != nil {
-			continue
-		}
-
-		body := buf[base.UDPHeaderSize:n]
-		s.onPacket(hdr, body, addr)
+		// [정규화] 이제 UDP 서버는 헤더를 해석하지 않고 데이터 전체를 엔진으로 넘깁니다.
+		s.onPacket(buf[:n], addr)
 	}
 }
 

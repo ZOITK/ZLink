@@ -98,16 +98,20 @@ func (s *Session) tcpParser(srv *Server) (uint32, []byte, error) {
 	// 정해진 크기만큼 헤더 읽기
 	if _, err := io.ReadFull(s.conn, hdrBuf[:hdrSize]); err != nil { return 0, nil, err }
 
-	hdr := &base.HeaderTCP{}
-	if err := hdr.Decode(hdrBuf[:hdrSize]); err != nil { return 0, nil, err }
+	// [정규화] 하드코딩된 base.HeaderTCP 대신 주입된 디코더 사용
+	if srv.TCPHeaderDecoder == nil {
+		return 0, nil, fmt.Errorf("TCP 헤더 디코더가 설정되지 않았습니다")
+	}
+	cmd, length, _, err := srv.TCPHeaderDecoder(hdrBuf[:hdrSize])
+	if err != nil { return 0, nil, err }
 
 	var body []byte
-	if hdr.Length > 0 {
-		body = pool.GetBody(hdr.Length)
+	if length > 0 {
+		body = pool.GetBody(length)
 		if _, err := io.ReadFull(s.conn, body); err != nil {
 			pool.PutBody(body)
 			return 0, nil, err
 		}
 	}
-	return hdr.Command, body, nil
+	return cmd, body, nil
 }
