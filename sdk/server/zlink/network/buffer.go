@@ -12,17 +12,20 @@ type BufferPool struct {
 	bodyPool   sync.Pool
 }
 
+const (
+	MaxHeaderSize = 64 // 어떤 아키텍처의 헤더도 수용 가능한 안전한 크기
+)
+
 // NewBufferPool - 새 버퍼 풀 생성
 func NewBufferPool() *BufferPool {
 	return &BufferPool{
 		headerPool: sync.Pool{
 			New: func() any {
-				return make([]byte, base.TCPHeaderSize) // 16 bytes (UDP 20 bytes도 커버 가능)
+				return make([]byte, MaxHeaderSize)
 			},
 		},
 		bodyPool: sync.Pool{
 			New: func() any {
-				// 기본 바디 크기 (필요시 동적으로 조절 가능)
 				return make([]byte, 1024)
 			},
 		},
@@ -36,8 +39,8 @@ func (p *BufferPool) GetHeader() []byte {
 
 // PutHeader - 헤더용 버퍼 반납
 func (p *BufferPool) PutHeader(b []byte) {
-	if cap(b) >= base.TCPHeaderSize {
-		p.headerPool.Put(b[:base.TCPHeaderSize])
+	if cap(b) >= MaxHeaderSize {
+		p.headerPool.Put(b[:MaxHeaderSize])
 	}
 }
 

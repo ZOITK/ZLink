@@ -30,7 +30,7 @@ type Server struct {
 
 	// 저수준 엔진 이벤트 핸들러 (내부/고급용)
 	OnConnect func(conn net.Conn)
-	OnPacket  func(hdr *base.HeaderUDP, body []byte, addr *net.UDPAddr)
+	OnPacket  func(data []byte, addr *net.UDPAddr)
 
 	// 헤더 정보 (제네레이터에 의해 설정됨)
 	TCPHeaderSize int
@@ -48,8 +48,8 @@ func NewServer(tcpPort, udpPort int) *Server {
 		UDPPort:         udpPort,
 		BufferPool:      NewBufferPool(),
 		OnRecvCallbacks: make([]func(*Session, any), 0),
-		TCPHeaderSize:   base.TCPHeaderSize, // 기본값
-		UDPHeaderSize:   base.UDPHeaderSize, // 기본값
+		TCPHeaderSize:   16, // 기본값
+		UDPHeaderSize:   20, // 기본값
 	}
 	
 	// TCP 서버 초기화 시 세션 라이프사이클 자동화 핸들러 등록
@@ -58,8 +58,7 @@ func NewServer(tcpPort, udpPort int) *Server {
 	s.UDP = NewUDPServer("0.0.0.0", udpPort, func(data []byte, addr *net.UDPAddr) {
 		// [정규화] 저수준 패킷 훅이 있으면 원시 데이터 그대로 전달
 		if s.OnPacket != nil {
-			// 기존 OnPacket의 hdr 인자를 nil로 보내거나, OnPacket 자체의 시그니처 변경 고려 (현재는 nil 전달)
-			s.OnPacket(nil, data, addr)
+			s.OnPacket(data, addr)
 		}
 	})
 	

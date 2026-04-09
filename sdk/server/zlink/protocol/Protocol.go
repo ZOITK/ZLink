@@ -1,6 +1,6 @@
 // 자동 생성된 프로토콜
 // 버전: 1
-// [ 2026-04-09 : 16:38:04 ] 자동 생성됨 (zlink-protocol-gen)
+// [ 2026-04-09 : 16:40:49 ] 자동 생성됨 (zlink-protocol-gen)
 
 package protocol
 
@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/vmihailenco/msgpack/v5"
+	"github.com/ZOITK/ZLink/sdk/server/zlink/base"
 )
 
 // =========================================================================
@@ -112,7 +113,7 @@ type IPacket = base.IPacket
 func Register(srv any, callback func(ISession, any)) {
 	type engine interface {
 		SetUnmarshaler(func(uint32, []byte) (any, error))
-		SetHeaderSize(int, int)
+		SetHeaderInfo(int, int, func([]byte) (uint32, uint32, uint32, error))
 		AddRecvCallback(func(any, any))
 	}
 
