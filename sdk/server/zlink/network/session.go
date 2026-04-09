@@ -9,7 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"zlink/base"
+	 "github.com/ZOITK/ZLink/sdk/server/zlink/base"
 )
 
 // ISession - 신규 SDK 엔진의 세션 인터페이스입니다.

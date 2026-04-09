@@ -6,7 +6,7 @@ import (
 	"net"
 	"sync/atomic"
 
-	"zlink/base"
+	 "github.com/ZOITK/ZLink/sdk/server/zlink/base"
 )
 
 // Server - 프레임워크 통합 서버 객체
