@@ -1,6 +1,6 @@
-// Package protocol - 자동 생성된 프로토콜
+// 자동 생성된 프로토콜
 // 버전: 1
-// 자동 생성됨 (zlink-protocol-gen)
+// [ 2026-04-09 : 15:57:27 ] 자동 생성됨 (zlink-protocol-gen)
 
 package protocol
 
