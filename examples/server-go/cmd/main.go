@@ -7,7 +7,7 @@ import (
 	"sync"
 	"syscall"
 
-	"zlink/protocol"
+	"server-go/internal/protocol"
 	"zlink/config"
 	"zlink/logger"
 	"zlink/network"
