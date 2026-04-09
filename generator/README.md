@@ -1,5 +1,10 @@
 # ZLink Protocol Generator
 
+[English](#english) | [한국어](#korean)
+
+<a name="english"></a>
+# English
+
 The ZLink Protocol Generator is the core tool of the ZLink socket framework. It simultaneously generates Go, Python, and C# packet code based on YAML definitions and automatically deploys them to each framework.
 
 ---
@@ -23,9 +28,12 @@ When `make gen` is executed, the following tasks are performed automatically:
 
 This mechanism ensures that the engine and protocol are always synchronized to a single version.
 
-=============================================================================
+[Back to Top](#)
 
-# ZLink 프로토콜 생성기
+---
+
+<a name="korean"></a>
+# 🇰🇷 한글 가이드 (Korean Version)
 
 ZLink 프로토콜 생성기는 ZLink 소켓 프레임워크의 핵심인 자동 코드 생성 도구입니다. YAML 설정을 기반으로 Go, Python, C# 패킷 코드를 동시 생성하고 각 프레임워크에 자동 배포합니다.
 
@@ -49,3 +57,5 @@ ZLink 프로토콜 생성기는 ZLink 소켓 프레임워크의 핵심인 자동
 2. **예제 동기화**: 최신 SDK 상태가 각 `examples/` 프로젝트 하위의 `zlink` 폴더로 즉시 동기화됩니다.
 
 이 메커니즘 덕분에 엔진과 프로토콜은 언제나 하나의 버전으로 동기화된 상태를 유지하게 됩니다.
+
+[위로 이동 (Back to Top)](#)

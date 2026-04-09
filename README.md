@@ -1,5 +1,10 @@
 # ZLink - High-Performance Multi-Platform Socket Framework
 
+[English](#english) | [한국어](#korean)
+
+<a name="english"></a>
+# English
+
 > **"Copy the `zlink` folder, Build your Logic."**
 
 ZLink is an ultra-lightweight, high-performance multi-platform socket framework for game and real-time application development. It aims for **Atomic Portability**, allowing you to start development immediately by copying a single `zlink` folder to any platform.
@@ -81,9 +86,12 @@ For a more detailed technical architecture, please refer to [docs/ARCHITECTURE.m
 ## 📄 License
 [MIT License](LICENSE)
 
-=============================================================================
+[Back to Top](#)
 
-# ZLink - 고성능 멀티플랫폼 소켓 프레임워크
+---
+
+<a name="korean"></a>
+# 🇰🇷 한글 가이드 (Korean Version)
 
 > **"`zlink` 폴더를 복사하고, 당신의 로직을 구축하세요."**
 
@@ -165,3 +173,5 @@ ZLink Root/
 
 ## 📄 라이선스
 [MIT License](LICENSE)
+
+[위로 이동 (Back to Top)](#)

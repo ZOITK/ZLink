@@ -1,5 +1,10 @@
 # ZLink Technical Architecture
 
+[English](#english) | [한국어](#korean)
+
+<a name="english"></a>
+# English
+
 ZLink follows a unified architecture designed for high performance and high productivity in cross-platform real-time communication.
 
 ---
@@ -47,9 +52,12 @@ ZLink emphasizes the "Source of Truth" derived from YAML definitions. The genera
 
 The API design of the Go server is reflected in the Python and Unity clients as much as possible. This allows developers to work seamlessly across different platforms without needing to relearn the communication model.
 
-=============================================================================
+[Back to Top](#)
 
-# ZLink 기술 아키텍처
+---
+
+<a name="korean"></a>
+# 🇰🇷 한글 가이드 (Korean Version)
 
 ZLink는 교차 플랫폼 실시간 통신에서 고성능과 고생산성을 목표로 설계된 통합 아키텍처를 따릅니다.
 
@@ -97,3 +105,5 @@ ZLink는 YAML 정의로부터 파생되는 "단일 진실 공급원(Source of Tr
 ## 4. 아키텍처 대칭성
 
 Go 서버의 API 설계 철학을 Python과 Unity 클라이언트에도 최대한 투영했습니다. 덕분에 개발자는 플랫폼을 넘나들며 개발할 때 통신 모델을 다시 배울 필요 없이 일관된 개발 경험을 가질 수 있습니다.
+
+[위로 이동 (Back to Top)](#)
