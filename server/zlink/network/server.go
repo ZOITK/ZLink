@@ -1,0 +1,119 @@
+// Package network - 소켓 서버 프레임워크 통합 엔진 (Orchestrator)
+package network
+
+import (
+	"log/slog"
+	"net"
+
+	"zlink/base"
+	"zlink/config"
+)
+
+// Server - 프레임워크 통합 서버 객체
+type Server struct {
+	Config     *config.Config
+	TCP        *TCPServer
+	UDP        *UDPServer
+	BufferPool *BufferPool
+	
+	// Unmarshaler - 바이트를 객체로 바꾸는 함수 (제네레이터가 제공)
+	Unmarshaler func(cmd uint32, body []byte) (any, error)
+	
+	// OnRecvCallbacks - 여러 비즈니스 로직들이 등록할 수 있는 콜백 리스트
+	OnRecvCallbacks []func(sess *Session, msg any)
+
+	// 고수준 엔진 이벤트 핸들러 (사용자용)
+	OnSessionOpen  func(sess *Session)
+	OnSessionClose func(sess *Session)
+
+	// 저수준 엔진 이벤트 핸들러 (내부/고급용)
+	OnConnect func(conn net.Conn)
+	OnPacket  func(hdr *base.HeaderUDP, body []byte, addr *net.UDPAddr)
+
+	// 헤더 정보 (제네레이터에 의해 설정됨)
+	TCPHeaderSize int
+	UDPHeaderSize int
+}
+
+// NewServer - 새 서버 인스턴스 생성
+func NewServer(cfg *config.Config) *Server {
+	s := &Server{
+		Config:          cfg,
+		BufferPool:      NewBufferPool(),
+		OnRecvCallbacks: make([]func(*Session, any), 0),
+		TCPHeaderSize:   base.TCPHeaderSize, // 기본값
+		UDPHeaderSize:   base.UDPHeaderSize, // 기본값
+	}
+	
+	// TCP 서버 초기화 시 세션 라이프사이클 자동화 핸들러 등록
+	s.TCP = NewTCPServer("0.0.0.0", cfg.TCPPort, s.handleNewConnection)
+	
+	s.UDP = NewUDPServer("0.0.0.0", cfg.UDPPort, func(hdr *base.HeaderUDP, body []byte, addr *net.UDPAddr) {
+		if s.OnPacket != nil { s.OnPacket(hdr, body, addr) }
+	})
+	
+	return s
+}
+
+// handleNewConnection - 내부용 세션 라이프사이클 관리자
+func (s *Server) handleNewConnection(conn net.Conn) {
+	// 1. 저수준 훅 호출 (커스텀 처리가 필요한 경우)
+	if s.OnConnect != nil {
+		s.OnConnect(conn)
+		return
+	}
+
+	// 2. 표준 세션 생성 및 초기화
+	sess := NewSession(conn)
+	sess.SetUDPServer(s.UDP)
+
+	// 3. 엔진 레벨 세션 오픈 이벤트
+	if s.OnSessionOpen != nil {
+		s.OnSessionOpen(sess)
+	}
+
+	// 4. 통신 루프 시작 (블로킹)
+	sess.HandleConnection(s)
+
+	// 5. 엔진 레벨 세션 종료 이벤트
+	if s.OnSessionClose != nil {
+		s.OnSessionClose(sess)
+	}
+
+	// 6. 자원 정리
+	sess.Close()
+}
+
+// AddRecvCallback - 새로운 패킷 리스너를 추가합니다 (+= 개념)
+func (s *Server) AddRecvCallback(cb func(any, any)) {
+	s.OnRecvCallbacks = append(s.OnRecvCallbacks, func(sess *Session, msg any) {
+		cb(sess, msg)
+	})
+}
+
+// SetUnmarshaler - 제네레이터가 호출하여 파싱 로직을 등록합니다.
+func (s *Server) SetUnmarshaler(u func(uint32, []byte) (any, error)) {
+	s.Unmarshaler = u
+}
+
+// SetHeaderSize - 제네레이터가 호출하여 헤더 크기를 설정합니다.
+func (s *Server) SetHeaderSize(tcpSize, udpSize int) {
+	s.TCPHeaderSize = tcpSize
+	s.UDPHeaderSize = udpSize
+}
+
+// Start, Stop 생략...
+func (s *Server) Start() error {
+	slog.Info("[Engine] 서버 가동", "tcp", s.Config.TCPPort, "udp", s.Config.UDPPort)
+	if err := s.UDP.Listen(); err != nil { return err }
+	if err := s.TCP.Listen(); err != nil { return err }
+	go s.UDP.Start()
+	go s.TCP.Start()
+	return nil
+}
+
+func (s *Server) Stop() {
+	s.TCP.Stop()
+	s.UDP.Stop()
+	slog.Info("[Engine] 서버 중지 완료")
+}

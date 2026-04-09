@@ -2,16 +2,15 @@ package main
 
 import (
 	"log/slog"
-	"net"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 
-	"zlink/cmd/protocol"
-	"zlink/pkg/config"
-	"zlink/pkg/logger"
-	"zlink/pkg/network"
+	"zlink-sample/cmd/protocol"
+	"zlink/config"
+	"zlink/logger"
+	"zlink/network"
 )
 
 // Player - 플레이어 정보
@@ -46,14 +45,13 @@ func main() {
 	srv := network.NewServer(cfg)
 	protocol.Register(srv, OnRecvPacket)
 
-	srv.OnConnect = func(conn net.Conn) {
-		sess := network.NewSession(conn)
-		sess.SetUDPServer(srv.UDP)
-
+	// 엔진이 세션 라이프사이클을 자동으로 관리하므로, 샘플에서는 최소한의 이벤트만 처리합니다.
+	srv.OnSessionOpen = func(sess *network.Session) {
 		slog.Info("[Server] New client connected / 새 클라이언트 접속", "addr", sess.RemoteAddr)
-		sess.HandleConnection(srv)
+	}
+
+	srv.OnSessionClose = func(sess *network.Session) {
 		slog.Info("[Server] Client disconnected / 클라이언트 접속 종료", "addr", sess.RemoteAddr)
-		sess.Close()
 	}
 
 	if err := srv.Start(); err != nil {
