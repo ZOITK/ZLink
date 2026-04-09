@@ -9,7 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	 "github.com/ZOITK/ZLink/sdk/server/zlink/base"
+	 "zlink/base"
 )
 
 // ISession - 이제 base 패키지의 ISession을 사용합니다.

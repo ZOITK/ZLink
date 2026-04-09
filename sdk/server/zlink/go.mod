@@ -1,4 +1,4 @@
-module github.com/ZOITK/ZLink/sdk/server/zlink
+module zlink
 
 go 1.25.6
 

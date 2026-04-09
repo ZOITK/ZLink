@@ -3,7 +3,7 @@ package network
 
 import (
 	"sync"
-	 "github.com/ZOITK/ZLink/sdk/server/zlink/base"
+	 "zlink/base"
 )
 
 // BufferPool - 바이트 슬라이스 재사용을 위한 풀
