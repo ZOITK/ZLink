@@ -1,288 +1,77 @@
-# ZLink / ZLink 소켓 프레임워크
+# ZLink | 멀티플랫폼 소켓 프레임워크
 
-> Lightweight multi-platform socket framework for game development
-> 게임 개발을 위한 경량 멀티플랫폼 소켓 프레임워크
+> **"Copy the `zlink` folder, Build your Logic."**
+> 
+> ZLink는 게임 및 실시간 애플리케이션 개발을 위한 초경량, 고성능 멀티플랫폼 소켓 프레임워크입니다.
+> 모든 플랫폼에서 `zlink` 폴더 하나만 복사하면 즉시 개발을 시작할 수 있는 **원자적 휴대성(Atomic Portability)**을 지향합니다.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+## 📦 아키텍처 개요 (Overview)
 
-## 📦 Overview / 개요
+ZLink는 핵심 엔진(SDK)과 이를 활용하는 예제(Examples)가 완벽하게 분리되어 있습니다.
 
-ZLink is a modular socket communication framework consisting of three independent projects. 
-Choose what you need and clone/use that specific folder.
-
-ZLink는 3개의 독립적인 프로젝트로 구성된 모듈식 소켓 통신 프레임워크입니다.
-필요한 것만 선택해서 사용하세요.
-
-### Three Independent Projects / 3가지 독립 프로젝트
-
-- **[server-go](./server-go/)** - Go server with protocol generator
-  - 프로토콜 제너레이터가 포함된 Go 서버
-  - Clone and run `cd server-go && go run examples/basic/main.go`
-
-- **[client-py](./client-py/)** - Python async client library
-  - Python 비동기 클라이언트 라이브러리
-  - Run with `cd client-py && uv sync && uv run examples/basic/main.py`
-
-- **[client-unity](./client-unity/)** - Unity3D C# client
-  - Unity3D C# 클라이언트
-  - Copy Assets folder to your Unity project
+- **`sdk/`**: 각 언어별 핵심 통신 엔진과 프로토콜 기반이 담긴 **완전체 모듈**입니다.
+- **`examples/`**: SDK를 프로젝트에 어떻게 통합하고 사용하는지 보여주는 **청사진(Blueprint)**입니다.
+- **`generator/`**: YAML 정의만으로 Go, Python, C# 패킷 코드를 자동 생성하고 SDK에 내장시켜주는 강력한 도구입니다.
 
 ---
 
-## 🚀 Quick Start / 빠른 시작
+## 🚀 빠른 시작 (Quick Start)
 
-### Option 1: Go Server / Go 서버 개발
-
+### 1. 프로토콜 정의 (Protocol Definition)
+`generator/schemas/basic.yaml` 파일을 수정하여 패킷 구조를 정의합니다.
 ```bash
-# Clone the entire repo or just server-go
-git clone https://github.com/ZOITK/ZLink
-cd ZLink/server-go
-
-# Test basic server (includes pre-built Protocol.go)
-cd examples/basic
-go run main.go
-
-# Server starts on TCP port 8080, UDP port 8081
-# Press Ctrl+C to stop
+cd generator
+make gen   # 프로토콜 생성 및 모든 SDK/예제 자동 배포/동기화
 ```
 
-### Option 2: Python Client / Python 클라이언트 개발
-
+### 2. 서버 구축 (Go Server)
+`sdk/server/zlink` 폴더를 프로젝트에 넣고 서버를 실행합니다.
 ```bash
-# Clone and setup
-git clone https://github.com/ZOITK/ZLink
-cd ZLink/client-py
-uv sync
-
-# Run basic client example
-uv run examples/basic/main.py
+cd examples/server-go
+go run cmd/main.go
 ```
 
-### Option 3: Unity Client / Unity 클라이언트 개발
+### 3. 클라이언트 연결 (Python & Unity)
+- **Python**: `sdk/client/py/zlink` 폴더를 복사합니다.
+  ```bash
+  cd examples/client-py
+  uv run main.py
+  ```
+- **Unity**: `sdk/client/unity/zlink` 폴더 전체를 Unity의 `Assets` 하위에 넣습니다.
+  - 내장된 `examples/` 폴더의 스크립트들을 참고하여 컴포넌트를 연결하세요.
 
-```bash
-# Copy client code to your Unity project
-# 1. Open your Unity project Assets folder
-# 2. Copy ZLink/client-unity/Assets contents to your Assets/
-# 3. Use in scripts: using ZoSocket; or using ZoSocket.Protocol;
+---
+
+## 📁 저장소 구조 (Project Structure)
+
+```text
+ZLink Root/
+├── sdk/                 # 플랫폼별 핵심 라이브러리 (Source of Truth)
+│   ├── server/zlink/    # Go 서버 엔진 및 프로토콜 내장
+│   ├── client/py/zlink/ # Python 비동기 라이브러리
+│   └── client/unity/zlink/ # Unity용 C# 모듈 및 플러그인
+├── examples/            # SDK 활용 프로젝트 (실행 가능한 샘플)
+│   ├── server-go/       # Go 서버 구현 예제
+│   ├── client-py/       # Python 클라이언트 구현 예제
+│   └── client-unity/    # Unity 클라이언트 프로젝트
+├── generator/           # 프로토콜 자동 생성기
+└── docs/                # 아키텍처 및 상세 가이드라인
 ```
 
 ---
 
-## 📁 Repository Structure / 저장소 구조
+## 🌟 핵심 가치 (Core Strategy)
 
-```
-ZLink/
-├── server-go/                # Go 서버 프레임워크
-│   ├── pkg/                  # 핵심 라이브러리 (config, logger, network)
-│   ├── generator/            # 프로토콜 코드 생성기
-│   ├── schemas/              # YAML 프로토콜 정의 (basic, game)
-│   ├── examples/
-│   │   ├── basic/            # 기본 예제 (로그인, 메시지 송수신)
-│   │   │   ├── main.go       # 서버 코드
-│   │   │   └── protocol/     # Protocol.go (자동 생성됨)
-│   │   └── game/             # 게임 예제 (방, 게임, 채팅)
-│   │       ├── main.go
-│   │       └── protocol/     # Protocol.go (자동 생성됨)
-│   ├── Makefile              # 프로토콜 생성 및 빌드
-│   └── README.md
-│
-├── client-py/                # Python 클라이언트
-│   ├── src/zlink/            # zlink 패키지 (network, protocol)
-│   ├── examples/
-│   │   ├── basic/
-│   │   │   ├── main.py       # 기본 클라이언트
-│   │   │   └── pyproject.toml
-│   │   └── game/
-│   │       ├── main.py       # 게임 클라이언트
-│   │       └── pyproject.toml
-│   ├── pyproject.toml        # 패키지 설정
-│   └── README.md
-│
-├── client-unity/             # Unity C# 클라이언트
-│   ├── Assets/
-│   │   └── ZoSocket/         # 메인 네임스페이스
-│   │       ├── Engine/       # 네트워크 라이브러리
-│   │       ├── Protocol/     # Protocol.cs 파일
-│   │       └── Examples/     # 예제 씬
-│   ├── examples/
-│   └── README.md
-│
-├── go.work                   # Go workspace (pkg, examples 포함)
-├── Makefile                  # 프로토콜 생성
-└── README.md                 # 이 파일
-```
+1. **원폴더(Single Folder) 패키징**: 모든 언어에서 `zlink` 폴더는 독립적입니다. 이 폴더만 있으면 별도의 설정 없이 통신 기반이 완성됩니다.
+2. **프로토콜-SDK 일체화**: 제네레이터는 코드를 외부가 아닌 **SDK 내부**에 직접 배포합니다. 엔진과 패킷이 늘 함께 움직여 버전 관리의 고통을 없앴습니다.
+3. **완벽한 대칭성(Architecture Symmetry)**: 서버(Go)의 세션 관리 철학이 클라이언트(Py/C#)에도 그대로 투영되어, 개발자는 어떤 플랫폼에서도 익숙하게 코딩할 수 있습니다.
 
 ---
 
-## 📖 How It Works / 작동 원리
-
-### Server-Client Communication Flow / 서버-클라이언트 통신 흐름
-
-```
-1. Server defines protocol in YAML
-   서버가 YAML로 프로토콜 정의
-   └─ schemas/basic.yaml (로그인, 메시지 송수신)
-   └─ schemas/game.yaml (방, 게임 로직)
-
-2. Generator creates Protocol.go
-   제너레이터가 Protocol.go 생성
-   └─ examples/basic/protocol/Protocol.go
-   └─ examples/game/protocol/Protocol.go
-
-3. Server implements OnRecvPacket handler
-   서버가 메시지 핸들러 구현
-   └─ examples/basic/main.go
-   └─ examples/game/main.go
-
-4. Client receives Protocol.go (manually)
-   클라이언트가 Protocol 파일을 받음 (수동)
-   └─ server가 protocol 파일 전달
-   └─ 클라이언트가 구현
-
-5. Client and Server communicate with MessagePack
-   MessagePack으로 통신
-```
+## 📄 상세 문서 (Documentation)
+더 자세한 기술 아키텍처는 [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)를 참조하세요.
 
 ---
 
-## 🔧 Features / 특징
-
-- **Protocol Auto-generation** / 프로토콜 자동생성
-  - Define packets in YAML, generate code automatically
-  - YAML로 패킷 정의, 코드 자동생성
-
-- **Multi-language** / 다중 언어 지원
-  - Go server, Python client, C#/Unity client
-  - Go 서버, Python 클라이언트, C#/Unity 클라이언트
-
-- **TCP & UDP** / TCP 및 UDP 지원
-  - Configurable protocol per packet
-  - 패킷별로 프로토콜 선택 가능
-
-- **MessagePack Serialization** / MessagePack 직렬화
-  - Fast binary format, smaller payload
-  - 빠른 바이너리 포맷, 작은 페이로드
-
-- **Session Management** / 세션 관리
-  - Automatic session lifecycle
-  - Session-based packet routing
-  - 자동 세션 관리, 세션 기반 라우팅
-
----
-
-## 💻 Detailed Usage / 상세 사용법
-
-### Modifying Protocol / 프로토콜 수정하기
-
-Server-side 프로토콜을 수정할 때:
-
-```bash
-cd ZLink/server-go
-
-# 1. Edit protocol schema
-vi schemas/basic.yaml  # or schemas/game.yaml
-
-# 2. Generate Protocol.go
-make gen
-
-# 3. Rebuild server
-cd examples/basic
-go run main.go
-```
-
-### Using with Existing Project / 기존 프로젝트에 적용
-
-#### Go Server
-```bash
-# Copy entire server-go folder to your project
-cp -r ZLink/server-go ../my-game-server
-cd ../my-game-server
-
-# Modify examples/basic/main.go with your game logic
-go run examples/basic/main.go
-```
-
-#### Python Client
-```bash
-# Add to your project's pyproject.toml
-# (if using as external module)
-dependencies = [
-    "zlink",  # from local ZLink/client-py
-]
-
-# Or copy client code to your project
-cp -r ZLink/client-py/src/zlink ../my-game-client/src/
-```
-
-#### Unity Client
-```
-1. Open your Unity project
-2. Copy ZLink/client-unity/Assets to your Assets folder
-3. In your C# script:
-   using ZoSocket;
-   
-   var client = new TCPClient("localhost", 8080);
-   await client.Connect();
-   await client.SendLogin(nickname);
-```
-
----
-
-## 📚 Documentation / 문서
-
-- [Go Server Guide](./server-go/README.md) - 서버 개발 상세 가이드
-- [Python Client Guide](./client-py/README.md) - Python 클라이언트 가이드
-- [Unity Client Guide](./client-unity/README.md) - Unity C# 클라이언트 가이드
-
----
-
-## 🎯 Examples / 예제
-
-### Basic Example / 기본 예제
-- **Protocol**: Login, Send/Receive Message, Heartbeat
-- **Server**: `server-go/examples/basic/main.go`
-- **Python Client**: `client-py/examples/basic/main.py`
-- **Use case**: Chat server, simple message broadcasting
-
-### Game Example / 게임 예제
-- **Protocol**: Room creation, Room search, Game start, Number guessing
-- **Server**: `server-go/examples/game/main.go`
-- **Python Client**: `client-py/examples/game/main.py`
-- **Use case**: Multiplayer game server with game rooms
-
----
-
-## 🔧 Configuration / 설정
-
-### Server Configuration / 서버 설정
-
-Environment variables:
-
-```bash
-TCP_PORT=8080         # TCP 포트 (기본값: 8080)
-UDP_PORT=8081         # UDP 포트 (기본값: 8081)
-NODE_ENV=development  # 환경 (development/production)
-```
-
-### Client Configuration / 클라이언트 설정
-
-In code / 코드에서:
-
-```python
-# Python
-client = TCPClient(host="127.0.0.1", port=8080)
-await client.connect()
-```
-
-```csharp
-// C#
-var client = new TCPClient("127.0.0.1", 8080);
-await client.ConnectAsync();
-```
-
----
-
-## 📄 License / 라이선스
-
+## 📄 라이선스 (License)
 [MIT License](LICENSE)
