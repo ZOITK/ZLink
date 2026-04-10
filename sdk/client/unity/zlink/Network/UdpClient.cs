@@ -9,14 +9,15 @@ namespace Zlink.Network
     /// <summary>
     /// 엔진 내부에서 사용되는 UDP 전송 핸들러입니다.
     /// </summary>
-    public class UdpClient
+    internal class _UdpClient
     {
         private System.Net.Sockets.UdpClient _client;
         private CancellationTokenSource _cts;
         private bool _isStarted;
         public bool IsStarted => _isStarted;
 
-        public Action<uint, byte[]> InternalOnReceive;
+        // (cmd, body, headerSid)
+        public Action<uint, byte[], uint> InternalOnReceive;
 
         public async Task<bool> StartAsync(string host, int port)
         {
@@ -41,11 +42,6 @@ namespace Zlink.Network
             _client?.Close();
         }
 
-        /// <summary>
-        /// UDP 클라이언트를 정리합니다. (IDisposable 구현)
-        /// </summary>
-        public void Dispose() => Stop();
-
         public void Send(byte[] data)
         {
             if (!_isStarted) return;
@@ -63,9 +59,9 @@ namespace Zlink.Network
                     byte[] data = result.Buffer;
                     if (data.Length < 24) continue;
 
-                    // Offset: 6(Cmd), 10(Len) - Standard
                     uint cmd = BitConverter.ToUInt32(data, 6);
                     uint bodyLen = BitConverter.ToUInt32(data, 10);
+                    uint sessionId = BitConverter.ToUInt32(data, 14);
 
                     byte[] body = null;
                     if (bodyLen > 0 && data.Length >= 24 + bodyLen)
@@ -73,7 +69,7 @@ namespace Zlink.Network
                         body = new byte[bodyLen];
                         Buffer.BlockCopy(data, 24, body, 0, (int)bodyLen);
                     }
-                    InternalOnReceive?.Invoke(cmd, body);
+                    InternalOnReceive?.Invoke(cmd, body, sessionId);
                 }
             }
             catch { }

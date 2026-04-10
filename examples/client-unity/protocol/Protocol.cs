@@ -1,6 +1,6 @@
 // 자동 생성된 프로토콜
 // 버전: 1
-// [ 2026-04-10 : 11:34:35 ] 자동 생성됨 (zlink-protocol-gen)
+// [ 2026-04-10 : 16:57:23 ] 자동 생성됨 (zlink-protocol-gen)
 using System;
 using System.Collections.Generic;
 using MessagePack;
@@ -93,12 +93,12 @@ namespace Zlink
         // --- 핵심 개선: 엔진 SDK의 Pack 함수를 사용하여 조립 (SSOT) ---
         public byte[] BuildTCP(uint errorCode = 0)
         {
-            return TcpClient.Pack(GetID(), Encode(), 0, errorCode);
+            return _TcpClient.Pack(GetID(), Encode(), 0, errorCode);
         }
 
         public byte[] BuildUDP(uint sender)
         {
-            return TcpClient.Pack(GetID(), Encode(), sender, 0);
+            return _TcpClient.Pack(GetID(), Encode(), sender, 0);
         }
     }
 
@@ -115,12 +115,12 @@ namespace Zlink
         // --- 핵심 개선: 엔진 SDK의 Pack 함수를 사용하여 조립 (SSOT) ---
         public byte[] BuildTCP(uint errorCode = 0)
         {
-            return TcpClient.Pack(GetID(), Encode(), 0, errorCode);
+            return _TcpClient.Pack(GetID(), Encode(), 0, errorCode);
         }
 
         public byte[] BuildUDP(uint sender)
         {
-            return TcpClient.Pack(GetID(), Encode(), sender, 0);
+            return _TcpClient.Pack(GetID(), Encode(), sender, 0);
         }
     }
 
@@ -137,12 +137,12 @@ namespace Zlink
         // --- 핵심 개선: 엔진 SDK의 Pack 함수를 사용하여 조립 (SSOT) ---
         public byte[] BuildTCP(uint errorCode = 0)
         {
-            return TcpClient.Pack(GetID(), Encode(), 0, errorCode);
+            return _TcpClient.Pack(GetID(), Encode(), 0, errorCode);
         }
 
         public byte[] BuildUDP(uint sender)
         {
-            return TcpClient.Pack(GetID(), Encode(), sender, 0);
+            return _TcpClient.Pack(GetID(), Encode(), sender, 0);
         }
     }
 
@@ -159,12 +159,12 @@ namespace Zlink
         // --- 핵심 개선: 엔진 SDK의 Pack 함수를 사용하여 조립 (SSOT) ---
         public byte[] BuildTCP(uint errorCode = 0)
         {
-            return TcpClient.Pack(GetID(), Encode(), 0, errorCode);
+            return _TcpClient.Pack(GetID(), Encode(), 0, errorCode);
         }
 
         public byte[] BuildUDP(uint sender)
         {
-            return TcpClient.Pack(GetID(), Encode(), sender, 0);
+            return _TcpClient.Pack(GetID(), Encode(), sender, 0);
         }
     }
 
@@ -181,12 +181,12 @@ namespace Zlink
         // --- 핵심 개선: 엔진 SDK의 Pack 함수를 사용하여 조립 (SSOT) ---
         public byte[] BuildTCP(uint errorCode = 0)
         {
-            return TcpClient.Pack(GetID(), Encode(), 0, errorCode);
+            return _TcpClient.Pack(GetID(), Encode(), 0, errorCode);
         }
 
         public byte[] BuildUDP(uint sender)
         {
-            return TcpClient.Pack(GetID(), Encode(), sender, 0);
+            return _TcpClient.Pack(GetID(), Encode(), sender, 0);
         }
     }
 
@@ -204,12 +204,12 @@ namespace Zlink
         // --- 핵심 개선: 엔진 SDK의 Pack 함수를 사용하여 조립 (SSOT) ---
         public byte[] BuildTCP(uint errorCode = 0)
         {
-            return TcpClient.Pack(GetID(), Encode(), 0, errorCode);
+            return _TcpClient.Pack(GetID(), Encode(), 0, errorCode);
         }
 
         public byte[] BuildUDP(uint sender)
         {
-            return TcpClient.Pack(GetID(), Encode(), sender, 0);
+            return _TcpClient.Pack(GetID(), Encode(), sender, 0);
         }
     }
 
@@ -226,12 +226,12 @@ namespace Zlink
         // --- 핵심 개선: 엔진 SDK의 Pack 함수를 사용하여 조립 (SSOT) ---
         public byte[] BuildTCP(uint errorCode = 0)
         {
-            return TcpClient.Pack(GetID(), Encode(), 0, errorCode);
+            return _TcpClient.Pack(GetID(), Encode(), 0, errorCode);
         }
 
         public byte[] BuildUDP(uint sender)
         {
-            return TcpClient.Pack(GetID(), Encode(), sender, 0);
+            return _TcpClient.Pack(GetID(), Encode(), sender, 0);
         }
     }
 
@@ -248,12 +248,12 @@ namespace Zlink
         // --- 핵심 개선: 엔진 SDK의 Pack 함수를 사용하여 조립 (SSOT) ---
         public byte[] BuildTCP(uint errorCode = 0)
         {
-            return TcpClient.Pack(GetID(), Encode(), 0, errorCode);
+            return _TcpClient.Pack(GetID(), Encode(), 0, errorCode);
         }
 
         public byte[] BuildUDP(uint sender)
         {
-            return TcpClient.Pack(GetID(), Encode(), sender, 0);
+            return _TcpClient.Pack(GetID(), Encode(), sender, 0);
         }
     }
 
@@ -272,12 +272,12 @@ namespace Zlink
         // --- 핵심 개선: 엔진 SDK의 Pack 함수를 사용하여 조립 (SSOT) ---
         public byte[] BuildTCP(uint errorCode = 0)
         {
-            return TcpClient.Pack(GetID(), Encode(), 0, errorCode);
+            return _TcpClient.Pack(GetID(), Encode(), 0, errorCode);
         }
 
         public byte[] BuildUDP(uint sender)
         {
-            return TcpClient.Pack(GetID(), Encode(), sender, 0);
+            return _TcpClient.Pack(GetID(), Encode(), sender, 0);
         }
     }
 

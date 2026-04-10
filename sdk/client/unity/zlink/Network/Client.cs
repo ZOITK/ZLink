@@ -6,12 +6,15 @@ namespace Zlink.Network
 {
     /// <summary>
     /// ZLink 통합 클라이언트 엔진입니다. (Orchestrator)
-    /// 서버 엔진과 대칭되는 인터페이스를 제공하며 TCP/UDP를 한곳에서 관리합니다.
+    /// 수신되는 모든 패킷(TCP/UDP)에서 SessionID를 학습하여 유기적으로 통합 관리합니다.
     /// </summary>
     public class Client : IDisposable
     {
-        public TcpClient TCP { get; private set; }
-        public UdpClient UDP { get; private set; }
+        internal _TcpClient TCP { get; private set; }
+        internal _UdpClient UDP { get; private set; }
+
+        // 엔진 통합 세션 ID (0이면 서버에 신규/매칭 요청)
+        public uint SessionId { get; private set; }
 
         // 엔진 통합 인터페이스 (Symmetry with Server)
         public Func<uint, byte[], object> Unmarshaler { get; private set; }
@@ -21,14 +24,14 @@ namespace Zlink.Network
 
         public bool IsConnected => (TCP != null && TCP.IsConnected) || (UDP != null && UDP.IsStarted);
 
-        /// <summary>엔진에 프로토콜 주입 (서버의 SetProtocol과 대칭)</summary>
+        /// <summary>엔진에 프로토콜 주입</summary>
         public void SetProtocol(Func<uint, byte[], object> unmarshaler, Func<object, bool, uint, byte[]> packer)
         {
             Unmarshaler = unmarshaler;
             Packer = packer;
         }
 
-        /// <summary>비즈니스 콜백 등록 (서버의 AddRecvCallback과 대칭)</summary>
+        /// <summary>비즈니스 콜백 등록</summary>
         public void AddRecvCallback(Action<object, object> callback)
         {
             if (!_onRecvCallbacks.Contains(callback))
@@ -37,18 +40,19 @@ namespace Zlink.Network
 
         public async Task<bool> StartAsync(string host, int tcpPort = 0, int udpPort = 0)
         {
+            SessionId = 0;
             bool success = false;
 
             if (tcpPort > 0)
             {
-                TCP = new TcpClient();
+                TCP = new _TcpClient();
                 TCP.InternalOnReceive = HandleReceive;
                 if (await TCP.ConnectAsync(host, tcpPort)) success = true;
             }
 
             if (udpPort > 0)
             {
-                UDP = new UdpClient();
+                UDP = new _UdpClient();
                 UDP.InternalOnReceive = HandleReceive;
                 if (await UDP.StartAsync(host, udpPort)) success = true;
             }
@@ -56,23 +60,30 @@ namespace Zlink.Network
             return success;
         }
 
-        /// <summary>메시지 객체를 전송 (TCP/UDP 자동 선택 가능)</summary>
+        /// <summary>메시지 객체를 전송</summary>
         public void Send(object msg, bool useUDP = false)
         {
             if (Packer == null) return;
 
-            // 서버로부터 할당받은 SessionID (TCP 응답 헤더에서 추출)
-            uint sessionId = TCP != null ? TCP.SessionId : 0u;
+            // TCP는 항상 0으로 보내어 서버가 IP 매칭 또는 신규 생성을 결정하게 함
+            // UDP는 할당받은 SessionId를 사용하여 서버가 기존 세션을 즉시 식별하게 함
+            uint sidToSend = useUDP ? SessionId : 0u;
 
-            // UDP 전송시 SessionID를 함께 전달하여 서버가 세션을 매칭할 수 있도록 함
-            byte[] data = Packer(msg, useUDP, sessionId);
+            byte[] data = Packer(msg, useUDP, sidToSend);
 
             if (useUDP && UDP != null) UDP.Send(data);
             else TCP?.Send(data);
         }
 
-        private void HandleReceive(uint command, byte[] body)
+        private void HandleReceive(uint command, byte[] body, uint headerSid)
         {
+            // [유기적 학습] 수신 헤더에 유효한 SessionID가 있다면 내 ID로 저장
+            if (headerSid > 0 && SessionId != headerSid)
+            {
+                SessionId = headerSid;
+                Logger.Debug($"[Engine] 세션 ID 학습 완료: {SessionId}");
+            }
+
             if (Unmarshaler == null) return;
             var msg = Unmarshaler(command, body);
             if (msg != null)
@@ -90,6 +101,7 @@ namespace Zlink.Network
         {
             TCP?.Disconnect();
             UDP?.Stop();
+            SessionId = 0;
         }
 
         public void Dispose() => Stop();

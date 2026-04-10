@@ -15,7 +15,7 @@ def Pack(cmd_id: int, body: bytes, session_id: int = 0, error_code: int = 0, ver
     hdr = struct.pack(HEADER_FMT, MAGIC_ZO, version, cmd_id, len(body), session_id, error_code, 0)
     return hdr + body
 
-class AsyncTcpClient:
+class _TcpClient:
     """
     엔진 내부에서 사용되는 TCP 전송기입니다.
     """
@@ -61,12 +61,11 @@ class AsyncTcpClient:
                 if not hdr_data: break
 
                 _, _, cmd, body_len, session_id, _, _ = struct.unpack(HEADER_FMT, hdr_data)
-                # 서버로부터 할당받은 SessionID 저장 (UDP 전송시 사용)
-                self.session_id = session_id
                 body = await self.reader.readexactly(body_len) if body_len > 0 else b""
 
                 if self.unmarshaler:
-                    self.unmarshaler(cmd, body)
+                    # session_id를 함께 전달하여 엔진이 학습하도록 함
+                    self.unmarshaler(cmd, body, session_id)
 
         except asyncio.IncompleteReadError:
             pass

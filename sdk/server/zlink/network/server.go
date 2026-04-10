@@ -38,6 +38,17 @@ type Server struct {
 	OnConnect       func(conn net.Conn)
 }
 
+// getNextSessionID - 다음 SessionID를 할당합니다 (1001부터 시작, 오버플로우 시 1000으로 회귀)
+func (s *Server) getNextSessionID() uint32 {
+	id := atomic.AddUint32(&s.lastSessionID, 1)
+	if id == 0 {
+		// uint32 오버플로우 발생 → 1000으로 리셋
+		atomic.StoreUint32(&s.lastSessionID, 1000)
+		id = 1001
+	}
+	return id
+}
+
 // SetProtocol - 엔진에 프로토콜 정의를 주입합니다 (유기적 통합)
 func (s *Server) SetProtocol(info base.ProtocolInfo) {
 	s.Protocol = info
@@ -47,7 +58,7 @@ func (s *Server) SetProtocol(info base.ProtocolInfo) {
 func (s *Server) getOrCreateUDPSession(addr *net.UDPAddr) *Session {
 	key := addr.String()
 
-	id := atomic.AddUint32(&s.lastSessionID, 1)
+	id := s.getNextSessionID()
 	newSess := NewSession(s, nil, id) // conn=nil (UDP 전용 세션)
 	newSess.SetUDPAddr(addr)
 	newSess.SetUDPServer(s.UDP)
@@ -68,9 +79,23 @@ func (s *Server) getOrCreateUDPSession(addr *net.UDPAddr) *Session {
 	return newSess
 }
 
+// findSessionsByIP - IP 주소를 기반으로 모든 활성 세션을 검색합니다. (NAT 대응)
+func (s *Server) findSessionsByIP(ip string) []*Session {
+	var results []*Session
+	s.sessions.Range(func(key, value any) bool {
+		sess := value.(*Session)
+		remoteIP, _, _ := net.SplitHostPort(sess.RemoteAddr)
+		if remoteIP == ip {
+			results = append(results, sess)
+		}
+		return true
+	})
+	return results
+}
+
 // HandlePacket - 수신된 원시 패킷을 프로토콜 정의에 따라 자동으로 메시지로 변환하여 전달
 func (s *Server) HandlePacket(sess base.ISession, data []byte, addr *net.UDPAddr) {
-	// 1. 헤더 유효성 및 기본 정보 추출 (ZLink 24B 표준 규격)
+	// 1. 헤더 유효성 및 기본 정보 추출
 	if len(data) < base.HeaderSize {
 		return
 	}
@@ -80,23 +105,37 @@ func (s *Server) HandlePacket(sess base.ISession, data []byte, addr *net.UDPAddr
 		return
 	}
 
-	cmd := binary.LittleEndian.Uint32(data[6:10])         // Command 오프셋 6 (Version 4B 확장 반영)
-	sessionID := binary.LittleEndian.Uint32(data[14:18]) // SessionID 오프셋 14
+	cmd := binary.LittleEndian.Uint32(data[6:10])
+	sessionID := binary.LittleEndian.Uint32(data[14:18])
+// 2. [유기적 세션 통합] 세션 식별 로직
+if sess == nil && addr != nil {
+	// 2-1. 정규 ID가 있는 경우 (가장 확실함)
+	if sessionID > 0 {
+		if val, ok := s.sessions.Load(sessionID); ok {
+			realSess := val.(*Session)
+			// UDP 주소 바인딩 (메서드 사용)
+			realSess.SetUDPAddr(addr)
+			sess = realSess
+		}
+	}
 
-	// 2. [유기적 바인딩] UDP로 왔는데 세션 정보가 없다면 처리
-	if sess == nil && addr != nil {
-		if s.TCP != nil {
-			// TCPBound 모드: SessionID로 기존 TCP 세션 조회 및 UDP 주소 바인딩
-			if val, ok := s.sessions.Load(sessionID); ok {
-				realSess := val.(*Session)
-				realSess.SetUDPAddr(addr)
-				sess = realSess
-			}
+	// 2-2. ID가 0인 경우 IP 매칭 (NAT 안전 모드)
+	if sess == nil {
+		ip := addr.IP.String()
+		candidates := s.findSessionsByIP(ip)
+
+		// NAT 안전 매칭: 해당 IP를 쓰는 세션이 서버에 '단 하나'뿐일 때만 자동 통합
+		if len(candidates) == 1 {
+			sess = candidates[0]
+			sess.(*Session).SetUDPAddr(addr)
+			slog.Debug("[zLink/Engine] IP 기반 유기적 세션 바인딩", "id", sess.ID(), "addr", addr.String())
 		} else {
-			// Standalone 모드: UDPAddr로 세션 조회 또는 신규 생성
+			// IP가 겹치거나 아예 없다면 신규 독립 세션 생성 (나중에 ID로 합쳐짐)
 			sess = s.getOrCreateUDPSession(addr)
 		}
 	}
+}
+
 
 	// 세션을 찾지 못한 경우 드롭 (TCPBound에서만 발생)
 	if sess == nil {
@@ -164,6 +203,7 @@ func NewServer(tcpPort, udpPort int) *Server {
 		UDPPort:         udpPort,
 		BufferPool:      NewBufferPool(),
 		OnRecvCallbacks: make([]func(sess base.ISession, msg any), 0),
+		lastSessionID:   1000,
 	}
 
 	// TCP 포트가 0이 아니면 TCP 서버 생성
@@ -183,7 +223,7 @@ func NewServer(tcpPort, udpPort int) *Server {
 
 // handleNewConnection - 내부용 세션 라이프사이클 관리자
 func (s *Server) handleNewConnection(conn net.Conn) {
-	id := atomic.AddUint32(&s.lastSessionID, 1)
+	id := s.getNextSessionID()
 	sess := NewSession(s, conn, id)
 	sess.SetUDPServer(s.UDP) // UDP 엔진 연결
 
@@ -197,6 +237,17 @@ func (s *Server) handleNewConnection(conn net.Conn) {
 		sess.Start() // 수신 루프 (Blocking)
 		// 루프 종료 시 (연결 끊김) 정리
 		s.sessions.Delete(id)
+
+		// 활성 세션이 모두 끊어지면 SessionID를 1000으로 초기화
+		activeCount := 0
+		s.sessions.Range(func(key, value any) bool {
+			activeCount++
+			return true
+		})
+		if activeCount == 0 {
+			atomic.StoreUint32(&s.lastSessionID, 1000)
+		}
+
 		if s.OnSessionClose != nil {
 			s.OnSessionClose(sess)
 		}

@@ -6,7 +6,7 @@ from .tcp_client import HEADER_SIZE, HEADER_FMT, MAGIC_ZO
 
 logger = logging.getLogger("zlink")
 
-class AsyncUdpClient:
+class _UdpClient:
     """
     엔진 내부에서 사용되는 UDP 전송기입니다.
     """
@@ -47,10 +47,10 @@ class AsyncUdpClient:
         class ZLinkUdpProtocol(asyncio.DatagramProtocol):
             def datagram_received(self, data, addr):
                 if len(data) < HEADER_SIZE: return
-                _, _, cmd, body_len, _, _, _ = struct.unpack(HEADER_FMT, data[:HEADER_SIZE])
+                _, _, cmd, body_len, session_id, _, _ = struct.unpack(HEADER_FMT, data[:HEADER_SIZE])
                 body = data[HEADER_SIZE : HEADER_SIZE+body_len] if body_len > 0 else b""
                 if outer.unmarshaler:
-                    outer.unmarshaler(cmd, body)
+                    outer.unmarshaler(cmd, body, session_id)
 
             def error_received(self, exc): logger.error(f"[UDP] 오류: {exc}")
         return ZLinkUdpProtocol()

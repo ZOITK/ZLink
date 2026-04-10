@@ -1,6 +1,6 @@
 # 자동 생성된 프로토콜
 # 버전: 1
-# [ 2026-04-10 : 11:34:35 ] 자동 생성됨 (zlink-protocol-gen)
+# [ 2026-04-10 : 16:57:23 ] 자동 생성됨 (zlink-protocol-gen)
 import msgspec
 import sys
 import os
@@ -58,9 +58,9 @@ class Msg_SystemTCPHeartBitReq(msgspec.Struct, omit_defaults=True, array_like=Tr
     def Decode(cls, Data: bytes): return msgspec.msgpack.decode(Data, type=cls)
     def GetID(self) -> int: return self.ID
     def BuildTCP(self, ErrorCode: int = 0) -> bytes:
-        return Pack(self.ID, self.Encode(), error_code=ErrorCode, version=1)
-    def BuildUDP(self, Sender: int) -> bytes:
-        return Pack(self.ID, self.Encode(), session_id=Sender, version=1)
+        return Pack(self.ID, self.Encode(), session_id=0, error_code=ErrorCode, version=1)
+    def BuildUDP(self, SessionID: int) -> bytes:
+        return Pack(self.ID, self.Encode(), session_id=SessionID, version=1)
 
 class Msg_SystemUDPHeartBitReq(msgspec.Struct, omit_defaults=True, array_like=True):
     """UDP Heartbeat / UDP 하트비트"""
@@ -72,9 +72,9 @@ class Msg_SystemUDPHeartBitReq(msgspec.Struct, omit_defaults=True, array_like=Tr
     def Decode(cls, Data: bytes): return msgspec.msgpack.decode(Data, type=cls)
     def GetID(self) -> int: return self.ID
     def BuildTCP(self, ErrorCode: int = 0) -> bytes:
-        return Pack(self.ID, self.Encode(), error_code=ErrorCode, version=1)
-    def BuildUDP(self, Sender: int) -> bytes:
-        return Pack(self.ID, self.Encode(), session_id=Sender, version=1)
+        return Pack(self.ID, self.Encode(), session_id=0, error_code=ErrorCode, version=1)
+    def BuildUDP(self, SessionID: int) -> bytes:
+        return Pack(self.ID, self.Encode(), session_id=SessionID, version=1)
 
 class Msg_SystemTCPHeartBitRes(msgspec.Struct, omit_defaults=True, array_like=True):
     """TCP Heartbeat / TCP 하트비트"""
@@ -86,9 +86,9 @@ class Msg_SystemTCPHeartBitRes(msgspec.Struct, omit_defaults=True, array_like=Tr
     def Decode(cls, Data: bytes): return msgspec.msgpack.decode(Data, type=cls)
     def GetID(self) -> int: return self.ID
     def BuildTCP(self, ErrorCode: int = 0) -> bytes:
-        return Pack(self.ID, self.Encode(), error_code=ErrorCode, version=1)
-    def BuildUDP(self, Sender: int) -> bytes:
-        return Pack(self.ID, self.Encode(), session_id=Sender, version=1)
+        return Pack(self.ID, self.Encode(), session_id=0, error_code=ErrorCode, version=1)
+    def BuildUDP(self, SessionID: int) -> bytes:
+        return Pack(self.ID, self.Encode(), session_id=SessionID, version=1)
 
 class Msg_SystemUDPHeartBitRes(msgspec.Struct, omit_defaults=True, array_like=True):
     """UDP Heartbeat / UDP 하트비트"""
@@ -100,9 +100,9 @@ class Msg_SystemUDPHeartBitRes(msgspec.Struct, omit_defaults=True, array_like=Tr
     def Decode(cls, Data: bytes): return msgspec.msgpack.decode(Data, type=cls)
     def GetID(self) -> int: return self.ID
     def BuildTCP(self, ErrorCode: int = 0) -> bytes:
-        return Pack(self.ID, self.Encode(), error_code=ErrorCode, version=1)
-    def BuildUDP(self, Sender: int) -> bytes:
-        return Pack(self.ID, self.Encode(), session_id=Sender, version=1)
+        return Pack(self.ID, self.Encode(), session_id=0, error_code=ErrorCode, version=1)
+    def BuildUDP(self, SessionID: int) -> bytes:
+        return Pack(self.ID, self.Encode(), session_id=SessionID, version=1)
 
 class Msg_AuthLoginReq(msgspec.Struct, omit_defaults=True, array_like=True):
     """Login / 로그인"""
@@ -114,9 +114,9 @@ class Msg_AuthLoginReq(msgspec.Struct, omit_defaults=True, array_like=True):
     def Decode(cls, Data: bytes): return msgspec.msgpack.decode(Data, type=cls)
     def GetID(self) -> int: return self.ID
     def BuildTCP(self, ErrorCode: int = 0) -> bytes:
-        return Pack(self.ID, self.Encode(), error_code=ErrorCode, version=1)
-    def BuildUDP(self, Sender: int) -> bytes:
-        return Pack(self.ID, self.Encode(), session_id=Sender, version=1)
+        return Pack(self.ID, self.Encode(), session_id=0, error_code=ErrorCode, version=1)
+    def BuildUDP(self, SessionID: int) -> bytes:
+        return Pack(self.ID, self.Encode(), session_id=SessionID, version=1)
 
 class Msg_AuthLoginRes(msgspec.Struct, omit_defaults=True, array_like=True):
     """Login / 로그인"""
@@ -129,9 +129,9 @@ class Msg_AuthLoginRes(msgspec.Struct, omit_defaults=True, array_like=True):
     def Decode(cls, Data: bytes): return msgspec.msgpack.decode(Data, type=cls)
     def GetID(self) -> int: return self.ID
     def BuildTCP(self, ErrorCode: int = 0) -> bytes:
-        return Pack(self.ID, self.Encode(), error_code=ErrorCode, version=1)
-    def BuildUDP(self, Sender: int) -> bytes:
-        return Pack(self.ID, self.Encode(), session_id=Sender, version=1)
+        return Pack(self.ID, self.Encode(), session_id=0, error_code=ErrorCode, version=1)
+    def BuildUDP(self, SessionID: int) -> bytes:
+        return Pack(self.ID, self.Encode(), session_id=SessionID, version=1)
 
 class Msg_MessageSendReq(msgspec.Struct, omit_defaults=True, array_like=True):
     """Send Message / 메시지 전송"""
@@ -143,9 +143,9 @@ class Msg_MessageSendReq(msgspec.Struct, omit_defaults=True, array_like=True):
     def Decode(cls, Data: bytes): return msgspec.msgpack.decode(Data, type=cls)
     def GetID(self) -> int: return self.ID
     def BuildTCP(self, ErrorCode: int = 0) -> bytes:
-        return Pack(self.ID, self.Encode(), error_code=ErrorCode, version=1)
-    def BuildUDP(self, Sender: int) -> bytes:
-        return Pack(self.ID, self.Encode(), session_id=Sender, version=1)
+        return Pack(self.ID, self.Encode(), session_id=0, error_code=ErrorCode, version=1)
+    def BuildUDP(self, SessionID: int) -> bytes:
+        return Pack(self.ID, self.Encode(), session_id=SessionID, version=1)
 
 class Msg_MessageSendRes(msgspec.Struct, omit_defaults=True, array_like=True):
     """Send Message / 메시지 전송"""
@@ -157,9 +157,9 @@ class Msg_MessageSendRes(msgspec.Struct, omit_defaults=True, array_like=True):
     def Decode(cls, Data: bytes): return msgspec.msgpack.decode(Data, type=cls)
     def GetID(self) -> int: return self.ID
     def BuildTCP(self, ErrorCode: int = 0) -> bytes:
-        return Pack(self.ID, self.Encode(), error_code=ErrorCode, version=1)
-    def BuildUDP(self, Sender: int) -> bytes:
-        return Pack(self.ID, self.Encode(), session_id=Sender, version=1)
+        return Pack(self.ID, self.Encode(), session_id=0, error_code=ErrorCode, version=1)
+    def BuildUDP(self, SessionID: int) -> bytes:
+        return Pack(self.ID, self.Encode(), session_id=SessionID, version=1)
 
 class Msg_MessageReceiveNotify(msgspec.Struct, omit_defaults=True, array_like=True):
     """Receive Message / 메시지 수신"""
@@ -173,9 +173,9 @@ class Msg_MessageReceiveNotify(msgspec.Struct, omit_defaults=True, array_like=Tr
     def Decode(cls, Data: bytes): return msgspec.msgpack.decode(Data, type=cls)
     def GetID(self) -> int: return self.ID
     def BuildTCP(self, ErrorCode: int = 0) -> bytes:
-        return Pack(self.ID, self.Encode(), error_code=ErrorCode, version=1)
-    def BuildUDP(self, Sender: int) -> bytes:
-        return Pack(self.ID, self.Encode(), session_id=Sender, version=1)
+        return Pack(self.ID, self.Encode(), session_id=0, error_code=ErrorCode, version=1)
+    def BuildUDP(self, SessionID: int) -> bytes:
+        return Pack(self.ID, self.Encode(), session_id=SessionID, version=1)
 
 # --- 패킷 레지스트리 등록 ---
 PacketRegistry._Registry[Cmd_SystemTCPHeartBitReq] = Msg_SystemTCPHeartBitReq

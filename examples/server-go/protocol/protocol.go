@@ -1,6 +1,6 @@
 // 자동 생성된 프로토콜
 // 버전: 1
-// [ 2026-04-10 : 11:34:35 ] 자동 생성됨 (zlink-protocol-gen)
+// [ 2026-04-10 : 16:57:23 ] 자동 생성됨 (zlink-protocol-gen)
 
 package protocol
 
@@ -126,20 +126,25 @@ func Register(srv any, callback func(ISession, any)) {
 	}
 }
 
-// Pack - 메시지 객체를 헤더가 포함된 온전한 패킷 바이트로 변환합니다. (sessionID는 TCP/UDP 모두에서 헤더에 포함)
+// Pack - 메시지 객체를 헤더가 포함된 온전한 패킷 바이트로 변환합니다. (sessionID는 헤더 주입용)
 func Pack(msg any, isUDP bool, sessionID uint32) ([]byte, error) {
 	if _, ok := msg.(IPacket); ok {
 		if isUDP {
-			// UDP 패킷 조립 (sessionID를 Sender로 전달)
+			// UDP 패킷 조립 (sessionID 주입)
 			type udpBuilder interface { BuildUDP(uint32) []byte }
 			if builder, ok := msg.(udpBuilder); ok {
 				return builder.BuildUDP(sessionID), nil
 			}
 		} else {
-			// TCP 패킷 조립 (sessionID를 함께 전달)
-			type tcpBuilder interface { BuildTCP(ErrorCode, uint32) []byte }
+			// TCP 패킷 조립 (errorCode는 기본값 Err_None)
+			type tcpBuilder interface { BuildTCP(ErrorCode) []byte }
 			if builder, ok := msg.(tcpBuilder); ok {
-				return builder.BuildTCP(Err_None, sessionID), nil
+				data := builder.BuildTCP(Err_None)
+				// TCP 응답 시 서버가 할당한 세션 ID를 헤더에 주입하여 클라이언트에게 알림
+				if len(data) >= base.HeaderSize && sessionID > 0 {
+					binary.LittleEndian.PutUint32(data[14:18], sessionID)
+				}
+				return data, nil
 			}
 		}
 	}
@@ -205,31 +210,13 @@ func (r *Msg_SystemTCPHeartBitReq) Decode(data []byte) error {
 	return msgpack.Unmarshal(data, r)
 }
 func (p *Msg_SystemTCPHeartBitReq) GetID() uint32 { return Cmd_SystemTCPHeartBitReq }
-func (p *Msg_SystemTCPHeartBitReq) BuildTCP(errCode ErrorCode, sessionID uint32) []byte {
+func (p *Msg_SystemTCPHeartBitReq) BuildTCP(errCode ErrorCode) []byte {
 	body, _ := p.Encode()
-	buf := make([]byte, base.HeaderSize+len(body))
-	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
-	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
-	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
-	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
-	binary.LittleEndian.PutUint32(buf[14:18], sessionID)
-	binary.LittleEndian.PutUint32(buf[18:22], uint32(errCode))
-	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
-	copy(buf[base.HeaderSize:], body)
-	return buf
+	return base.Pack(p.GetID(), body, 0, uint32(errCode), CurrentVersion)
 }
 func (p *Msg_SystemTCPHeartBitReq) BuildUDP(sender uint32) []byte {
 	body, _ := p.Encode()
-	buf := make([]byte, base.HeaderSize+len(body))
-	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
-	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
-	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
-	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
-	binary.LittleEndian.PutUint32(buf[14:18], sender)
-	binary.LittleEndian.PutUint32(buf[18:22], 0) // ErrorCode
-	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
-	copy(buf[base.HeaderSize:], body)
-	return buf
+	return base.Pack(p.GetID(), body, sender, 0, CurrentVersion)
 }
 func (r *Msg_SystemUDPHeartBitReq) Encode() ([]byte, error) {
 	return msgpack.Marshal(r)
@@ -239,31 +226,13 @@ func (r *Msg_SystemUDPHeartBitReq) Decode(data []byte) error {
 	return msgpack.Unmarshal(data, r)
 }
 func (p *Msg_SystemUDPHeartBitReq) GetID() uint32 { return Cmd_SystemUDPHeartBitReq }
-func (p *Msg_SystemUDPHeartBitReq) BuildTCP(errCode ErrorCode, sessionID uint32) []byte {
+func (p *Msg_SystemUDPHeartBitReq) BuildTCP(errCode ErrorCode) []byte {
 	body, _ := p.Encode()
-	buf := make([]byte, base.HeaderSize+len(body))
-	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
-	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
-	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
-	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
-	binary.LittleEndian.PutUint32(buf[14:18], sessionID)
-	binary.LittleEndian.PutUint32(buf[18:22], uint32(errCode))
-	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
-	copy(buf[base.HeaderSize:], body)
-	return buf
+	return base.Pack(p.GetID(), body, 0, uint32(errCode), CurrentVersion)
 }
 func (p *Msg_SystemUDPHeartBitReq) BuildUDP(sender uint32) []byte {
 	body, _ := p.Encode()
-	buf := make([]byte, base.HeaderSize+len(body))
-	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
-	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
-	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
-	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
-	binary.LittleEndian.PutUint32(buf[14:18], sender)
-	binary.LittleEndian.PutUint32(buf[18:22], 0) // ErrorCode
-	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
-	copy(buf[base.HeaderSize:], body)
-	return buf
+	return base.Pack(p.GetID(), body, sender, 0, CurrentVersion)
 }
 func (r *Msg_SystemTCPHeartBitRes) Encode() ([]byte, error) {
 	return msgpack.Marshal(r)
@@ -273,31 +242,13 @@ func (r *Msg_SystemTCPHeartBitRes) Decode(data []byte) error {
 	return msgpack.Unmarshal(data, r)
 }
 func (p *Msg_SystemTCPHeartBitRes) GetID() uint32 { return Cmd_SystemTCPHeartBitRes }
-func (p *Msg_SystemTCPHeartBitRes) BuildTCP(errCode ErrorCode, sessionID uint32) []byte {
+func (p *Msg_SystemTCPHeartBitRes) BuildTCP(errCode ErrorCode) []byte {
 	body, _ := p.Encode()
-	buf := make([]byte, base.HeaderSize+len(body))
-	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
-	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
-	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
-	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
-	binary.LittleEndian.PutUint32(buf[14:18], sessionID)
-	binary.LittleEndian.PutUint32(buf[18:22], uint32(errCode))
-	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
-	copy(buf[base.HeaderSize:], body)
-	return buf
+	return base.Pack(p.GetID(), body, 0, uint32(errCode), CurrentVersion)
 }
 func (p *Msg_SystemTCPHeartBitRes) BuildUDP(sender uint32) []byte {
 	body, _ := p.Encode()
-	buf := make([]byte, base.HeaderSize+len(body))
-	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
-	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
-	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
-	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
-	binary.LittleEndian.PutUint32(buf[14:18], sender)
-	binary.LittleEndian.PutUint32(buf[18:22], 0) // ErrorCode
-	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
-	copy(buf[base.HeaderSize:], body)
-	return buf
+	return base.Pack(p.GetID(), body, sender, 0, CurrentVersion)
 }
 func (r *Msg_SystemUDPHeartBitRes) Encode() ([]byte, error) {
 	return msgpack.Marshal(r)
@@ -307,31 +258,13 @@ func (r *Msg_SystemUDPHeartBitRes) Decode(data []byte) error {
 	return msgpack.Unmarshal(data, r)
 }
 func (p *Msg_SystemUDPHeartBitRes) GetID() uint32 { return Cmd_SystemUDPHeartBitRes }
-func (p *Msg_SystemUDPHeartBitRes) BuildTCP(errCode ErrorCode, sessionID uint32) []byte {
+func (p *Msg_SystemUDPHeartBitRes) BuildTCP(errCode ErrorCode) []byte {
 	body, _ := p.Encode()
-	buf := make([]byte, base.HeaderSize+len(body))
-	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
-	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
-	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
-	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
-	binary.LittleEndian.PutUint32(buf[14:18], sessionID)
-	binary.LittleEndian.PutUint32(buf[18:22], uint32(errCode))
-	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
-	copy(buf[base.HeaderSize:], body)
-	return buf
+	return base.Pack(p.GetID(), body, 0, uint32(errCode), CurrentVersion)
 }
 func (p *Msg_SystemUDPHeartBitRes) BuildUDP(sender uint32) []byte {
 	body, _ := p.Encode()
-	buf := make([]byte, base.HeaderSize+len(body))
-	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
-	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
-	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
-	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
-	binary.LittleEndian.PutUint32(buf[14:18], sender)
-	binary.LittleEndian.PutUint32(buf[18:22], 0) // ErrorCode
-	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
-	copy(buf[base.HeaderSize:], body)
-	return buf
+	return base.Pack(p.GetID(), body, sender, 0, CurrentVersion)
 }
 func (r *Msg_AuthLoginReq) Encode() ([]byte, error) {
 	return msgpack.Marshal(r)
@@ -341,31 +274,13 @@ func (r *Msg_AuthLoginReq) Decode(data []byte) error {
 	return msgpack.Unmarshal(data, r)
 }
 func (p *Msg_AuthLoginReq) GetID() uint32 { return Cmd_AuthLoginReq }
-func (p *Msg_AuthLoginReq) BuildTCP(errCode ErrorCode, sessionID uint32) []byte {
+func (p *Msg_AuthLoginReq) BuildTCP(errCode ErrorCode) []byte {
 	body, _ := p.Encode()
-	buf := make([]byte, base.HeaderSize+len(body))
-	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
-	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
-	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
-	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
-	binary.LittleEndian.PutUint32(buf[14:18], sessionID)
-	binary.LittleEndian.PutUint32(buf[18:22], uint32(errCode))
-	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
-	copy(buf[base.HeaderSize:], body)
-	return buf
+	return base.Pack(p.GetID(), body, 0, uint32(errCode), CurrentVersion)
 }
 func (p *Msg_AuthLoginReq) BuildUDP(sender uint32) []byte {
 	body, _ := p.Encode()
-	buf := make([]byte, base.HeaderSize+len(body))
-	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
-	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
-	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
-	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
-	binary.LittleEndian.PutUint32(buf[14:18], sender)
-	binary.LittleEndian.PutUint32(buf[18:22], 0) // ErrorCode
-	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
-	copy(buf[base.HeaderSize:], body)
-	return buf
+	return base.Pack(p.GetID(), body, sender, 0, CurrentVersion)
 }
 func (r *Msg_AuthLoginRes) Encode() ([]byte, error) {
 	return msgpack.Marshal(r)
@@ -375,31 +290,13 @@ func (r *Msg_AuthLoginRes) Decode(data []byte) error {
 	return msgpack.Unmarshal(data, r)
 }
 func (p *Msg_AuthLoginRes) GetID() uint32 { return Cmd_AuthLoginRes }
-func (p *Msg_AuthLoginRes) BuildTCP(errCode ErrorCode, sessionID uint32) []byte {
+func (p *Msg_AuthLoginRes) BuildTCP(errCode ErrorCode) []byte {
 	body, _ := p.Encode()
-	buf := make([]byte, base.HeaderSize+len(body))
-	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
-	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
-	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
-	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
-	binary.LittleEndian.PutUint32(buf[14:18], sessionID)
-	binary.LittleEndian.PutUint32(buf[18:22], uint32(errCode))
-	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
-	copy(buf[base.HeaderSize:], body)
-	return buf
+	return base.Pack(p.GetID(), body, 0, uint32(errCode), CurrentVersion)
 }
 func (p *Msg_AuthLoginRes) BuildUDP(sender uint32) []byte {
 	body, _ := p.Encode()
-	buf := make([]byte, base.HeaderSize+len(body))
-	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
-	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
-	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
-	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
-	binary.LittleEndian.PutUint32(buf[14:18], sender)
-	binary.LittleEndian.PutUint32(buf[18:22], 0) // ErrorCode
-	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
-	copy(buf[base.HeaderSize:], body)
-	return buf
+	return base.Pack(p.GetID(), body, sender, 0, CurrentVersion)
 }
 func (r *Msg_MessageSendReq) Encode() ([]byte, error) {
 	return msgpack.Marshal(r)
@@ -409,31 +306,13 @@ func (r *Msg_MessageSendReq) Decode(data []byte) error {
 	return msgpack.Unmarshal(data, r)
 }
 func (p *Msg_MessageSendReq) GetID() uint32 { return Cmd_MessageSendReq }
-func (p *Msg_MessageSendReq) BuildTCP(errCode ErrorCode, sessionID uint32) []byte {
+func (p *Msg_MessageSendReq) BuildTCP(errCode ErrorCode) []byte {
 	body, _ := p.Encode()
-	buf := make([]byte, base.HeaderSize+len(body))
-	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
-	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
-	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
-	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
-	binary.LittleEndian.PutUint32(buf[14:18], sessionID)
-	binary.LittleEndian.PutUint32(buf[18:22], uint32(errCode))
-	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
-	copy(buf[base.HeaderSize:], body)
-	return buf
+	return base.Pack(p.GetID(), body, 0, uint32(errCode), CurrentVersion)
 }
 func (p *Msg_MessageSendReq) BuildUDP(sender uint32) []byte {
 	body, _ := p.Encode()
-	buf := make([]byte, base.HeaderSize+len(body))
-	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
-	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
-	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
-	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
-	binary.LittleEndian.PutUint32(buf[14:18], sender)
-	binary.LittleEndian.PutUint32(buf[18:22], 0) // ErrorCode
-	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
-	copy(buf[base.HeaderSize:], body)
-	return buf
+	return base.Pack(p.GetID(), body, sender, 0, CurrentVersion)
 }
 func (r *Msg_MessageSendRes) Encode() ([]byte, error) {
 	return msgpack.Marshal(r)
@@ -443,31 +322,13 @@ func (r *Msg_MessageSendRes) Decode(data []byte) error {
 	return msgpack.Unmarshal(data, r)
 }
 func (p *Msg_MessageSendRes) GetID() uint32 { return Cmd_MessageSendRes }
-func (p *Msg_MessageSendRes) BuildTCP(errCode ErrorCode, sessionID uint32) []byte {
+func (p *Msg_MessageSendRes) BuildTCP(errCode ErrorCode) []byte {
 	body, _ := p.Encode()
-	buf := make([]byte, base.HeaderSize+len(body))
-	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
-	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
-	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
-	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
-	binary.LittleEndian.PutUint32(buf[14:18], sessionID)
-	binary.LittleEndian.PutUint32(buf[18:22], uint32(errCode))
-	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
-	copy(buf[base.HeaderSize:], body)
-	return buf
+	return base.Pack(p.GetID(), body, 0, uint32(errCode), CurrentVersion)
 }
 func (p *Msg_MessageSendRes) BuildUDP(sender uint32) []byte {
 	body, _ := p.Encode()
-	buf := make([]byte, base.HeaderSize+len(body))
-	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
-	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
-	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
-	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
-	binary.LittleEndian.PutUint32(buf[14:18], sender)
-	binary.LittleEndian.PutUint32(buf[18:22], 0) // ErrorCode
-	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
-	copy(buf[base.HeaderSize:], body)
-	return buf
+	return base.Pack(p.GetID(), body, sender, 0, CurrentVersion)
 }
 func (r *Msg_MessageReceiveNotify) Encode() ([]byte, error) {
 	return msgpack.Marshal(r)
@@ -477,29 +338,11 @@ func (r *Msg_MessageReceiveNotify) Decode(data []byte) error {
 	return msgpack.Unmarshal(data, r)
 }
 func (p *Msg_MessageReceiveNotify) GetID() uint32 { return Cmd_MessageReceiveNotify }
-func (p *Msg_MessageReceiveNotify) BuildTCP(errCode ErrorCode, sessionID uint32) []byte {
+func (p *Msg_MessageReceiveNotify) BuildTCP(errCode ErrorCode) []byte {
 	body, _ := p.Encode()
-	buf := make([]byte, base.HeaderSize+len(body))
-	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
-	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
-	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
-	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
-	binary.LittleEndian.PutUint32(buf[14:18], sessionID)
-	binary.LittleEndian.PutUint32(buf[18:22], uint32(errCode))
-	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
-	copy(buf[base.HeaderSize:], body)
-	return buf
+	return base.Pack(p.GetID(), body, 0, uint32(errCode), CurrentVersion)
 }
 func (p *Msg_MessageReceiveNotify) BuildUDP(sender uint32) []byte {
 	body, _ := p.Encode()
-	buf := make([]byte, base.HeaderSize+len(body))
-	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
-	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
-	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
-	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
-	binary.LittleEndian.PutUint32(buf[14:18], sender)
-	binary.LittleEndian.PutUint32(buf[18:22], 0) // ErrorCode
-	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
-	copy(buf[base.HeaderSize:], body)
-	return buf
+	return base.Pack(p.GetID(), body, sender, 0, CurrentVersion)
 }

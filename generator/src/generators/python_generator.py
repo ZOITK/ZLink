@@ -129,9 +129,9 @@ def Register(client, callback):
         
         # --- 핵심 개선: 엔진 SDK의 Pack 함수를 사용하여 조립 (SSOT) ---
         lines.append("    def BuildTCP(self, ErrorCode: int = 0) -> bytes:")
-        lines.append(f"        return Pack(self.ID, self.Encode(), error_code=ErrorCode, version={self.protocol.version})")
-        lines.append("    def BuildUDP(self, Sender: int) -> bytes:")
-        lines.append(f"        return Pack(self.ID, self.Encode(), session_id=Sender, version={self.protocol.version})")
+        lines.append(f"        return Pack(self.ID, self.Encode(), session_id=0, error_code=ErrorCode, version={self.protocol.version})")
+        lines.append("    def BuildUDP(self, SessionID: int) -> bytes:")
+        lines.append(f"        return Pack(self.ID, self.Encode(), session_id=SessionID, version={self.protocol.version})")
         
         return "\n".join(lines)
 
