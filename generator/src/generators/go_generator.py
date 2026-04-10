@@ -1,4 +1,5 @@
 # Go 코드 생성기
+import datetime
 from pathlib import Path
 from ..models import ProtocolDef, StructDef, FieldDef, PacketDef, ErrorDef
 
@@ -19,26 +20,23 @@ class GoGenerator:
         print(f"✓ Go 프로토콜 생성 (ZPP 규격): {output_path}")
 
     def _generate_protocol_module(self) -> str:
-        # 헤더 사이즈 미리 계산 (상수 정의에서 사용됨)
-        tcp_hdr = self.protocol.headers.get("tcp")
-        udp_hdr = self.protocol.headers.get("udp")
-        tcp_size = sum(self.protocol.get_type(f.type_name).size for f in tcp_hdr.fields) if tcp_hdr else 16
-        udp_size = sum(self.protocol.get_type(f.type_name).size for f in udp_hdr.fields) if udp_hdr else 20
+        sections = []
 
         sections = []
         
         # 1. 패키지 및 임포트
-        sections.append(f"""// Package protocol - 자동 생성된 프로토콜
+        now_str = datetime.datetime.now().strftime("%Y-%m-%d : %H:%M:%S")
+        sections.append(f"""// 자동 생성된 프로토콜
 // 버전: {self.protocol.version}
-// 자동 생성됨 (zlink-protocol-gen)
+// [ {now_str} ] 자동 생성됨 (zlink-protocol-gen)
 
 package protocol
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"github.com/vmihailenco/msgpack/v5"
+	"zlink/base"
 )""")
 
         # 2. --- 변수 및 상수 ---
@@ -47,8 +45,6 @@ import (
             "// --- 변수 및 상수 ---",
             "// =========================================================================",
             f"const CurrentVersion = {self.protocol.version}",
-            f"const HeaderSize = {tcp_size}",
-            f"const HeaderUdpSize = {udp_size}",
             "",
             "type ErrorCode uint32",
             "",
@@ -78,21 +74,16 @@ import (
             struct_decl_lines.append(self._generate_packet_decl(pkt))
         sections.append("\n".join(struct_decl_lines))
 
-        # 4. --- 공통 인터페이스 ---
+        # 4. --- 공통 인터페이스 (ZLink Standard) ---
         sections.append("""// =========================================================================
-// --- 공통 인터페이스 ---
+// --- 공통 인터페이스 (ZLink Standard) ---
 // =========================================================================
 
-// ISession - 엔진 세션 기능을 추상화한 인터페이스 (비즈니스 로직용)
-type ISession interface {
-	SendRaw(data []byte) error
-	Close()
-}
+// ISession - 이제 base 패키지를 통해 규격화된 인터페이스를 참조합니다.
+type ISession = base.ISession
 
-// Packet - 모든 패킷 구조체가 구현하는 인터페이스
-type Packet interface {
-	GetID() uint32
-}""")
+// IPacket - 이제 base 패키지를 통해 규격화된 인터페이스를 참조합니다.
+type IPacket = base.IPacket""")
 
         # 5. --- 중앙 집중형 디스패처 (Binder) ---
 
@@ -101,27 +92,48 @@ type Packet interface {
             "// --- 중앙 집중형 디스패처 (Registration) ---",
             "// =========================================================================",
             "",
-            "// Register - 엔진 서버에 프로토콜 파서(최초 1회)와 비즈니스 콜백을 등록합니다.",
-            "// 여러 번 호출하여 다중 리스너(Multi-listener)를 구성할 수 있습니다.",
+            "// Register - 엔진 서버에 프로토콜 지식(ProtocolInfo)과 비즈니스 콜백을 등록합니다.",
             "func Register(srv any, callback func(ISession, any)) {",
             "\ttype engine interface {",
-            "\t\tSetUnmarshaler(func(uint32, []byte) (any, error))",
-            "\t\tSetHeaderSize(int, int)",
-            "\t\tAddRecvCallback(func(any, any))",
+            "\t\tSetProtocol(base.ProtocolInfo)",
+            "\t\tAddRecvCallback(func(base.ISession, any))",
             "\t}",
             "",
             "\tif s, ok := srv.(engine); ok {",
-            f"\t\ts.SetHeaderSize(HeaderSize, HeaderUdpSize)",
-            "\t\t// 파싱 로직은 최초 1회만 등록됨 (엔진 내부에서 처리)",
-            "\t\ts.SetUnmarshaler(_Unmarshal)",
-            "\t\t// 콜백 리스트에 추가",
-            "\t\ts.AddRecvCallback(func(sess any, msg any) {",
-            "\t\t\tcallback(sess.(ISession), msg)",
+            "\t\t// 1. 엔진에게 프로토콜의 모든 규격을 학습시킵니다. (Organic Integration)",
+            "\t\ts.SetProtocol(base.ProtocolInfo{",
+            "\t\t\tUnmarshaler: _Unmarshal,",
+            "\t\t\tPacker:      Pack,",
+            "\t\t})",
+            "",
+            "\t\t// 2. 비즈니스 콜백을 엔진의 수신 리스트에 등록합니다.",
+            "\t\ts.AddRecvCallback(func(sess base.ISession, msg any) {",
+            "\t\t\tcallback(sess, msg)",
             "\t\t})",
             "\t}",
             "}",
         ]
         
+        dispatch_lines.append("")
+        dispatch_lines.append("// Pack - 메시지 객체를 헤더가 포함된 온전한 패킷 바이트로 변환합니다. (sessionID는 TCP/UDP 모두에서 헤더에 포함)")
+        dispatch_lines.append("func Pack(msg any, isUDP bool, sessionID uint32) ([]byte, error) {")
+        dispatch_lines.append("\tif _, ok := msg.(IPacket); ok {")
+        dispatch_lines.append("\t\tif isUDP {")
+        dispatch_lines.append("\t\t\t// UDP 패킷 조립 (sessionID를 Sender로 전달)")
+        dispatch_lines.append("\t\t\ttype udpBuilder interface { BuildUDP(uint32) []byte }")
+        dispatch_lines.append("\t\t\tif builder, ok := msg.(udpBuilder); ok {")
+        dispatch_lines.append("\t\t\t\treturn builder.BuildUDP(sessionID), nil")
+        dispatch_lines.append("\t\t\t}")
+        dispatch_lines.append("\t\t} else {")
+        dispatch_lines.append("\t\t\t// TCP 패킷 조립 (sessionID를 함께 전달)")
+        dispatch_lines.append("\t\t\ttype tcpBuilder interface { BuildTCP(ErrorCode, uint32) []byte }")
+        dispatch_lines.append("\t\t\tif builder, ok := msg.(tcpBuilder); ok {")
+        dispatch_lines.append("\t\t\t\treturn builder.BuildTCP(Err_None, sessionID), nil")
+        dispatch_lines.append("\t\t\t}")
+        dispatch_lines.append("\t\t}")
+        dispatch_lines.append("\t}")
+        dispatch_lines.append("\treturn nil, fmt.Errorf(\"invalid message type: not an IPacket or missing builders\")")
+        dispatch_lines.append("}")
         dispatch_lines.append("")
         dispatch_lines.append("// _Unmarshal - 커맨드 ID에 따라 바이트 데이터를 해당 구조체로 자동 파싱 (비공개)")
         dispatch_lines.append("func _Unmarshal(cmd uint32, body []byte) (any, error) {")
@@ -173,15 +185,31 @@ type Packet interface {
         for pkt in sorted(self.protocol.packets, key=lambda x: x.get_id()):
             struct_method_lines.append(self._generate_method_pair(f"Msg_{pkt.name}"))
             struct_method_lines.append(f"func (p *Msg_{pkt.name}) GetID() uint32 {{ return Cmd_{pkt.name} }}")
-            struct_method_lines.append(f"func (p *Msg_{pkt.name}) BuildTCP(errCode ErrorCode) []byte {{")
+            struct_method_lines.append(f"func (p *Msg_{pkt.name}) BuildTCP(errCode ErrorCode, sessionID uint32) []byte {{")
             struct_method_lines.append("\tbody, _ := p.Encode()")
-            struct_method_lines.append("\thdr := &Sys_PackHeader{Version: uint32(CurrentVersion), Command: p.GetID(), Length: uint32(len(body)), Error: uint32(errCode)}")
-            struct_method_lines.append("\treturn append(hdr.Encode(), body...)")
+            struct_method_lines.append("\tbuf := make([]byte, base.HeaderSize+len(body))")
+            struct_method_lines.append("\tbinary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)")
+            struct_method_lines.append("\tbinary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))")
+            struct_method_lines.append("\tbinary.LittleEndian.PutUint32(buf[6:10], p.GetID())")
+            struct_method_lines.append("\tbinary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))")
+            struct_method_lines.append("\tbinary.LittleEndian.PutUint32(buf[14:18], sessionID)")
+            struct_method_lines.append("\tbinary.LittleEndian.PutUint32(buf[18:22], uint32(errCode))")
+            struct_method_lines.append("\tbinary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)")
+            struct_method_lines.append("\tcopy(buf[base.HeaderSize:], body)")
+            struct_method_lines.append("\treturn buf")
             struct_method_lines.append("}")
             struct_method_lines.append(f"func (p *Msg_{pkt.name}) BuildUDP(sender uint32) []byte {{")
             struct_method_lines.append("\tbody, _ := p.Encode()")
-            struct_method_lines.append("\thdr := &Sys_PackHeaderUDP{Version: uint32(CurrentVersion), Command: p.GetID(), Length: uint32(len(body)), Sender: sender, Error: 0}")
-            struct_method_lines.append("\treturn append(hdr.Encode(), body...)")
+            struct_method_lines.append("\tbuf := make([]byte, base.HeaderSize+len(body))")
+            struct_method_lines.append("\tbinary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)")
+            struct_method_lines.append("\tbinary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))")
+            struct_method_lines.append("\tbinary.LittleEndian.PutUint32(buf[6:10], p.GetID())")
+            struct_method_lines.append("\tbinary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))")
+            struct_method_lines.append("\tbinary.LittleEndian.PutUint32(buf[14:18], sender)")
+            struct_method_lines.append("\tbinary.LittleEndian.PutUint32(buf[18:22], 0) // ErrorCode")
+            struct_method_lines.append("\tbinary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)")
+            struct_method_lines.append("\tcopy(buf[base.HeaderSize:], body)")
+            struct_method_lines.append("\treturn buf")
             struct_method_lines.append("}")
         sections.append("\n".join(struct_method_lines))
 

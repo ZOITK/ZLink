@@ -37,36 +37,39 @@ gen:
 		SELECTED=$$(echo $$FILES | tr ' ' '\n' | sed -n "$${choice}p"); \
 	fi; \
 	echo "✅ 선택: $$(basename $$SELECTED)"; \
-	echo "🔨 프로토콜 생성 중..."; \
+	echo "🔨 선택된 스키마로 프로토콜 생성 중..."; \
 	mkdir -p $(OUTPUT_DIR); \
 	uv run python -m src.cli generate \
 		--schema $$SELECTED \
-		--go-out $(OUTPUT_DIR)/Protocol.go \
-		--py-out $(OUTPUT_DIR)/Protocol.py \
+		--go-out $(OUTPUT_DIR)/protocol.go \
+		--py-out $(OUTPUT_DIR)/protocol.py \
 		--cs-out $(OUTPUT_DIR)/Protocol.cs; \
-	echo "✅ 생성 완료:"; \
-	echo "   - $(OUTPUT_DIR)/Protocol.go"; \
-	echo "   - $(OUTPUT_DIR)/Protocol.py"; \
-	echo "   - $(OUTPUT_DIR)/Protocol.cs"; \
-	echo "🚚 프로젝트 배포 및 SDK 동기화 중..."; \
-	# 1. SDK 내부로 프로토콜 배포 \
-	cp $(OUTPUT_DIR)/Protocol.go ../sdk/server/zlink/protocol/; \
-	cp $(OUTPUT_DIR)/Protocol.py ../sdk/client/py/zlink/protocol/; \
-	cp $(OUTPUT_DIR)/Protocol.cs ../sdk/client/unity/zlink/protocol/; \
-	# 2. 예제 프로젝트로 최신 SDK 동기화 (사용자 편의성) \
-	mkdir -p ../examples/client-py/zlink && cp -R ../sdk/client/py/zlink/* ../examples/client-py/zlink/; \
-	mkdir -p ../examples/client-unity/Assets/zlink && cp -R ../sdk/client/unity/zlink/* ../examples/client-unity/Assets/zlink/; \
-	echo "✅ 배포 및 동기화 완료!"
+	echo "✅ output 폴더에 생성 완료!"; \
+	echo "🚚 examples 프로젝트에 배포 중..."; \
+	mkdir -p ../examples/server-go/protocol && cp $(OUTPUT_DIR)/protocol.go ../examples/server-go/protocol/; \
+	mkdir -p ../examples/client-py/protocol && cp $(OUTPUT_DIR)/protocol.py ../examples/client-py/protocol/; \
+	mkdir -p ../examples/client-unity/protocol && cp $(OUTPUT_DIR)/Protocol.cs ../examples/client-unity/protocol/; \
+	echo "✅ 생성 및 배포 완료!"
 
 help:
 	@echo "ZLink Protocol Generator - 사용 가능한 명령어"
 	@echo ""
 	@echo "프로토콜 생성:"
-	@echo "  make gen                스키마 선택해서 Protocol.* 생성 및 각 프로젝트 배포"
+	@echo "  make gen                스키마 선택해서 output/에 생성 및 examples에 배포"
+	@echo ""
+	@echo "출력 위치:"
+	@echo "  output/protocol.go      Go 서버 protocol (기본: basic.yaml)"
+	@echo "  output/protocol.py      Python 클라이언트 protocol"
+	@echo "  output/Protocol.cs      Unity 클라이언트 protocol"
+	@echo ""
+	@echo "배포 위치:"
+	@echo "  examples/server-go/protocol/"
+	@echo "  examples/client-py/zlink/protocol/"
+	@echo "  examples/client-unity/Assets/Zlink/protocol/"
 	@echo ""
 	@echo "도움말:"
 	@echo "  make help               이 메시지 출력"
 	@echo ""
 	@echo "📝 사용 예시:"
-	@echo "  # 프로토콜 생성 및 자동 배포"
+	@echo "  # basic.yaml로 프로토콜 생성 및 examples에 배포"
 	@echo "  make gen"

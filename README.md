@@ -23,6 +23,26 @@ ZLink completely separates the core engine (SDK) from the implementation example
 
 ## 🚀 Quick Start
 
+### 0️⃣ Initial Setup (Run Once)
+
+First-time clone? Run the setup script to configure SDK references:
+
+```bash
+bash scripts/setup.sh
+```
+
+📖 **See [SETUP.md](./SETUP.md) for detailed development environment guide.**
+
+---
+
+## 📚 Language-Specific Guides
+
+- **🐍 [Python Client Setup](./sdk/client/python/SETUP.md)**
+- **🎮 [Unity Client Setup](./sdk/client/unity/SETUP.md)**  
+- **🔧 [Go Server Setup](./sdk/server/zlink/SETUP.md)**
+
+---
+
 ### 1. Protocol Definition
 Define the packet structure by modifying the `generator/schemas/basic.yaml` file.
 
@@ -41,13 +61,14 @@ go run basicServer.go
 
 ### 3. Run Clients (Python & Unity)
 
-- **Python**: Copy the `sdk/client/python/zlink` folder.
+- **Python**: Uses `pip install -e .` to reference SDK directly.
   ```bash
   cd examples/client-py
   uv run basicClient.py
   ```
 
-- **Unity**: Copy the entire `sdk/client/unity/zlink` folder under Unity's `Assets`.
+- **Unity**: Uses symlink to reference SDK directly.
+  - Open `examples/client-unity` in Unity Hub
   - Refer to `examples/client-unity/BasicClient.cs` to connect components.
 
 ---
@@ -111,6 +132,26 @@ ZLink는 핵심 엔진(SDK)과 이를 활용하는 예제(Examples)가 완벽하
 
 ## 🚀 빠른 시작
 
+### 0️⃣ 초기 설정 (최초 1회)
+
+저장소를 Clone 받으면 초기 설정 스크립트를 실행하세요:
+
+```bash
+bash scripts/setup.sh
+```
+
+📖 **자세한 개발 환경 설정 가이드는 [SETUP.md](./SETUP.md)를 참고하세요.**
+
+---
+
+## 📚 언어별 설정 가이드
+
+- **🐍 [Python 클라이언트 설정](./sdk/client/python/SETUP.md)**
+- **🎮 [Unity 클라이언트 설정](./sdk/client/unity/SETUP.md)**
+- **🔧 [Go 서버 설정](./sdk/server/zlink/SETUP.md)**
+
+---
+
 ### 1. 프로토콜 정의
 `generator/schemas/basic.yaml` 파일을 수정하여 패킷 구조를 정의합니다.
 
@@ -129,13 +170,14 @@ go run basicServer.go
 
 ### 3. 클라이언트 실행 (Python 및 Unity)
 
-- **Python**: `sdk/client/python/zlink` 폴더를 복사합니다.
+- **Python**: `pip install -e .`로 SDK를 직접 참조합니다.
   ```bash
   cd examples/client-py
   uv run basicClient.py
   ```
 
-- **Unity**: `sdk/client/unity/zlink` 폴더 전체를 Unity의 `Assets` 하위에 복사합니다.
+- **Unity**: Symlink로 SDK를 직접 참조합니다.
+  - Unity Hub에서 `examples/client-unity` 열기
   - `examples/client-unity/BasicClient.cs` 예제를 참고하여 컴포넌트를 연결하세요.
 
 ---

@@ -1,0 +1,505 @@
+// 자동 생성된 프로토콜
+// 버전: 1
+// [ 2026-04-10 : 11:34:35 ] 자동 생성됨 (zlink-protocol-gen)
+
+package protocol
+
+import (
+	"encoding/binary"
+	"fmt"
+	"github.com/vmihailenco/msgpack/v5"
+	"zlink/base"
+)
+
+// =========================================================================
+// --- 변수 및 상수 ---
+// =========================================================================
+const CurrentVersion = 1
+
+type ErrorCode uint32
+
+// Error Codes
+const (
+	Err_None ErrorCode = 0 // 정상
+	Err_InvalidValue ErrorCode = 1 // 잘못된 값
+	Err_Unauthorized ErrorCode = 2 // 인증 필요
+	Err_Server ErrorCode = 3 // 서버 오류
+)
+
+// Packet IDs (Cmd_)
+const (
+	Cmd_SystemTCPHeartBitReq uint32 = 11110001 // TCP Heartbeat / TCP 하트비트
+	Cmd_SystemUDPHeartBitReq uint32 = 11110002 // UDP Heartbeat / UDP 하트비트
+	Cmd_SystemTCPHeartBitRes uint32 = 11120001 // TCP Heartbeat / TCP 하트비트
+	Cmd_SystemUDPHeartBitRes uint32 = 11120002 // UDP Heartbeat / UDP 하트비트
+	Cmd_AuthLoginReq uint32 = 12110001 // Login / 로그인
+	Cmd_AuthLoginRes uint32 = 12120001 // Login / 로그인
+	Cmd_MessageSendReq uint32 = 13110001 // Send Message / 메시지 전송
+	Cmd_MessageSendRes uint32 = 13120001 // Send Message / 메시지 전송
+	Cmd_MessageReceiveNotify uint32 = 13130002 // Receive Message / 메시지 수신
+)
+
+// =========================================================================
+// --- 구조체 선언 ---
+// =========================================================================
+// Msg_SystemTCPHeartBitReq - TCP Heartbeat / TCP 하트비트
+type Msg_SystemTCPHeartBitReq struct {
+	_msgpack struct{} `msgpack:",as_array"` // 데이터 압축 전송용
+	ServerTime int64 `msgpack:"ServerTime"`
+}
+// Msg_SystemUDPHeartBitReq - UDP Heartbeat / UDP 하트비트
+type Msg_SystemUDPHeartBitReq struct {
+	_msgpack struct{} `msgpack:",as_array"` // 데이터 압축 전송용
+	Timestamp int64 `msgpack:"Timestamp"`
+}
+// Msg_SystemTCPHeartBitRes - TCP Heartbeat / TCP 하트비트
+type Msg_SystemTCPHeartBitRes struct {
+	_msgpack struct{} `msgpack:",as_array"` // 데이터 압축 전송용
+	ServerTime int64 `msgpack:"ServerTime"`
+}
+// Msg_SystemUDPHeartBitRes - UDP Heartbeat / UDP 하트비트
+type Msg_SystemUDPHeartBitRes struct {
+	_msgpack struct{} `msgpack:",as_array"` // 데이터 압축 전송용
+	Timestamp int64 `msgpack:"Timestamp"`
+}
+// Msg_AuthLoginReq - Login / 로그인
+type Msg_AuthLoginReq struct {
+	_msgpack struct{} `msgpack:",as_array"` // 데이터 압축 전송용
+	Nickname string `msgpack:"Nickname"`
+}
+// Msg_AuthLoginRes - Login / 로그인
+type Msg_AuthLoginRes struct {
+	_msgpack struct{} `msgpack:",as_array"` // 데이터 압축 전송용
+	PlayerID uint32 `msgpack:"PlayerID"`
+	Result uint32 `msgpack:"Result"`
+}
+// Msg_MessageSendReq - Send Message / 메시지 전송
+type Msg_MessageSendReq struct {
+	_msgpack struct{} `msgpack:",as_array"` // 데이터 압축 전송용
+	Message string `msgpack:"Message"`
+}
+// Msg_MessageSendRes - Send Message / 메시지 전송
+type Msg_MessageSendRes struct {
+	_msgpack struct{} `msgpack:",as_array"` // 데이터 압축 전송용
+	Result uint32 `msgpack:"Result"`
+}
+// Msg_MessageReceiveNotify - Receive Message / 메시지 수신
+type Msg_MessageReceiveNotify struct {
+	_msgpack struct{} `msgpack:",as_array"` // 데이터 압축 전송용
+	PlayerID uint32 `msgpack:"PlayerID"`
+	Nickname string `msgpack:"Nickname"`
+	Message string `msgpack:"Message"`
+}
+
+// =========================================================================
+// --- 공통 인터페이스 (ZLink Standard) ---
+// =========================================================================
+
+// ISession - 이제 base 패키지를 통해 규격화된 인터페이스를 참조합니다.
+type ISession = base.ISession
+
+// IPacket - 이제 base 패키지를 통해 규격화된 인터페이스를 참조합니다.
+type IPacket = base.IPacket
+
+// =========================================================================
+// --- 중앙 집중형 디스패처 (Registration) ---
+// =========================================================================
+
+// Register - 엔진 서버에 프로토콜 지식(ProtocolInfo)과 비즈니스 콜백을 등록합니다.
+func Register(srv any, callback func(ISession, any)) {
+	type engine interface {
+		SetProtocol(base.ProtocolInfo)
+		AddRecvCallback(func(base.ISession, any))
+	}
+
+	if s, ok := srv.(engine); ok {
+		// 1. 엔진에게 프로토콜의 모든 규격을 학습시킵니다. (Organic Integration)
+		s.SetProtocol(base.ProtocolInfo{
+			Unmarshaler: _Unmarshal,
+			Packer:      Pack,
+		})
+
+		// 2. 비즈니스 콜백을 엔진의 수신 리스트에 등록합니다.
+		s.AddRecvCallback(func(sess base.ISession, msg any) {
+			callback(sess, msg)
+		})
+	}
+}
+
+// Pack - 메시지 객체를 헤더가 포함된 온전한 패킷 바이트로 변환합니다. (sessionID는 TCP/UDP 모두에서 헤더에 포함)
+func Pack(msg any, isUDP bool, sessionID uint32) ([]byte, error) {
+	if _, ok := msg.(IPacket); ok {
+		if isUDP {
+			// UDP 패킷 조립 (sessionID를 Sender로 전달)
+			type udpBuilder interface { BuildUDP(uint32) []byte }
+			if builder, ok := msg.(udpBuilder); ok {
+				return builder.BuildUDP(sessionID), nil
+			}
+		} else {
+			// TCP 패킷 조립 (sessionID를 함께 전달)
+			type tcpBuilder interface { BuildTCP(ErrorCode, uint32) []byte }
+			if builder, ok := msg.(tcpBuilder); ok {
+				return builder.BuildTCP(Err_None, sessionID), nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("invalid message type: not an IPacket or missing builders")
+}
+
+// _Unmarshal - 커맨드 ID에 따라 바이트 데이터를 해당 구조체로 자동 파싱 (비공개)
+func _Unmarshal(cmd uint32, body []byte) (any, error) {
+	switch cmd {
+	case Cmd_SystemTCPHeartBitReq:
+		msg := &Msg_SystemTCPHeartBitReq{}
+		if err := msg.Decode(body); err != nil { return nil, err }
+		return msg, nil
+	case Cmd_SystemUDPHeartBitReq:
+		msg := &Msg_SystemUDPHeartBitReq{}
+		if err := msg.Decode(body); err != nil { return nil, err }
+		return msg, nil
+	case Cmd_SystemTCPHeartBitRes:
+		msg := &Msg_SystemTCPHeartBitRes{}
+		if err := msg.Decode(body); err != nil { return nil, err }
+		return msg, nil
+	case Cmd_SystemUDPHeartBitRes:
+		msg := &Msg_SystemUDPHeartBitRes{}
+		if err := msg.Decode(body); err != nil { return nil, err }
+		return msg, nil
+	case Cmd_AuthLoginReq:
+		msg := &Msg_AuthLoginReq{}
+		if err := msg.Decode(body); err != nil { return nil, err }
+		return msg, nil
+	case Cmd_AuthLoginRes:
+		msg := &Msg_AuthLoginRes{}
+		if err := msg.Decode(body); err != nil { return nil, err }
+		return msg, nil
+	case Cmd_MessageSendReq:
+		msg := &Msg_MessageSendReq{}
+		if err := msg.Decode(body); err != nil { return nil, err }
+		return msg, nil
+	case Cmd_MessageSendRes:
+		msg := &Msg_MessageSendRes{}
+		if err := msg.Decode(body); err != nil { return nil, err }
+		return msg, nil
+	case Cmd_MessageReceiveNotify:
+		msg := &Msg_MessageReceiveNotify{}
+		if err := msg.Decode(body); err != nil { return nil, err }
+		return msg, nil
+	}
+	return nil, fmt.Errorf("unknown command: %d", cmd)
+}
+
+// =========================================================================
+// --- 시스템 헤더 (정의 기반 동적 생성) ---
+// =========================================================================
+
+
+// =========================================================================
+// --- 구조체 관련 함수 (인코딩/디코딩/빌드) ---
+// =========================================================================
+func (r *Msg_SystemTCPHeartBitReq) Encode() ([]byte, error) {
+	return msgpack.Marshal(r)
+}
+
+func (r *Msg_SystemTCPHeartBitReq) Decode(data []byte) error {
+	return msgpack.Unmarshal(data, r)
+}
+func (p *Msg_SystemTCPHeartBitReq) GetID() uint32 { return Cmd_SystemTCPHeartBitReq }
+func (p *Msg_SystemTCPHeartBitReq) BuildTCP(errCode ErrorCode, sessionID uint32) []byte {
+	body, _ := p.Encode()
+	buf := make([]byte, base.HeaderSize+len(body))
+	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
+	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
+	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
+	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
+	binary.LittleEndian.PutUint32(buf[14:18], sessionID)
+	binary.LittleEndian.PutUint32(buf[18:22], uint32(errCode))
+	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
+	copy(buf[base.HeaderSize:], body)
+	return buf
+}
+func (p *Msg_SystemTCPHeartBitReq) BuildUDP(sender uint32) []byte {
+	body, _ := p.Encode()
+	buf := make([]byte, base.HeaderSize+len(body))
+	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
+	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
+	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
+	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
+	binary.LittleEndian.PutUint32(buf[14:18], sender)
+	binary.LittleEndian.PutUint32(buf[18:22], 0) // ErrorCode
+	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
+	copy(buf[base.HeaderSize:], body)
+	return buf
+}
+func (r *Msg_SystemUDPHeartBitReq) Encode() ([]byte, error) {
+	return msgpack.Marshal(r)
+}
+
+func (r *Msg_SystemUDPHeartBitReq) Decode(data []byte) error {
+	return msgpack.Unmarshal(data, r)
+}
+func (p *Msg_SystemUDPHeartBitReq) GetID() uint32 { return Cmd_SystemUDPHeartBitReq }
+func (p *Msg_SystemUDPHeartBitReq) BuildTCP(errCode ErrorCode, sessionID uint32) []byte {
+	body, _ := p.Encode()
+	buf := make([]byte, base.HeaderSize+len(body))
+	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
+	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
+	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
+	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
+	binary.LittleEndian.PutUint32(buf[14:18], sessionID)
+	binary.LittleEndian.PutUint32(buf[18:22], uint32(errCode))
+	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
+	copy(buf[base.HeaderSize:], body)
+	return buf
+}
+func (p *Msg_SystemUDPHeartBitReq) BuildUDP(sender uint32) []byte {
+	body, _ := p.Encode()
+	buf := make([]byte, base.HeaderSize+len(body))
+	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
+	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
+	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
+	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
+	binary.LittleEndian.PutUint32(buf[14:18], sender)
+	binary.LittleEndian.PutUint32(buf[18:22], 0) // ErrorCode
+	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
+	copy(buf[base.HeaderSize:], body)
+	return buf
+}
+func (r *Msg_SystemTCPHeartBitRes) Encode() ([]byte, error) {
+	return msgpack.Marshal(r)
+}
+
+func (r *Msg_SystemTCPHeartBitRes) Decode(data []byte) error {
+	return msgpack.Unmarshal(data, r)
+}
+func (p *Msg_SystemTCPHeartBitRes) GetID() uint32 { return Cmd_SystemTCPHeartBitRes }
+func (p *Msg_SystemTCPHeartBitRes) BuildTCP(errCode ErrorCode, sessionID uint32) []byte {
+	body, _ := p.Encode()
+	buf := make([]byte, base.HeaderSize+len(body))
+	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
+	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
+	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
+	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
+	binary.LittleEndian.PutUint32(buf[14:18], sessionID)
+	binary.LittleEndian.PutUint32(buf[18:22], uint32(errCode))
+	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
+	copy(buf[base.HeaderSize:], body)
+	return buf
+}
+func (p *Msg_SystemTCPHeartBitRes) BuildUDP(sender uint32) []byte {
+	body, _ := p.Encode()
+	buf := make([]byte, base.HeaderSize+len(body))
+	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
+	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
+	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
+	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
+	binary.LittleEndian.PutUint32(buf[14:18], sender)
+	binary.LittleEndian.PutUint32(buf[18:22], 0) // ErrorCode
+	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
+	copy(buf[base.HeaderSize:], body)
+	return buf
+}
+func (r *Msg_SystemUDPHeartBitRes) Encode() ([]byte, error) {
+	return msgpack.Marshal(r)
+}
+
+func (r *Msg_SystemUDPHeartBitRes) Decode(data []byte) error {
+	return msgpack.Unmarshal(data, r)
+}
+func (p *Msg_SystemUDPHeartBitRes) GetID() uint32 { return Cmd_SystemUDPHeartBitRes }
+func (p *Msg_SystemUDPHeartBitRes) BuildTCP(errCode ErrorCode, sessionID uint32) []byte {
+	body, _ := p.Encode()
+	buf := make([]byte, base.HeaderSize+len(body))
+	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
+	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
+	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
+	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
+	binary.LittleEndian.PutUint32(buf[14:18], sessionID)
+	binary.LittleEndian.PutUint32(buf[18:22], uint32(errCode))
+	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
+	copy(buf[base.HeaderSize:], body)
+	return buf
+}
+func (p *Msg_SystemUDPHeartBitRes) BuildUDP(sender uint32) []byte {
+	body, _ := p.Encode()
+	buf := make([]byte, base.HeaderSize+len(body))
+	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
+	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
+	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
+	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
+	binary.LittleEndian.PutUint32(buf[14:18], sender)
+	binary.LittleEndian.PutUint32(buf[18:22], 0) // ErrorCode
+	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
+	copy(buf[base.HeaderSize:], body)
+	return buf
+}
+func (r *Msg_AuthLoginReq) Encode() ([]byte, error) {
+	return msgpack.Marshal(r)
+}
+
+func (r *Msg_AuthLoginReq) Decode(data []byte) error {
+	return msgpack.Unmarshal(data, r)
+}
+func (p *Msg_AuthLoginReq) GetID() uint32 { return Cmd_AuthLoginReq }
+func (p *Msg_AuthLoginReq) BuildTCP(errCode ErrorCode, sessionID uint32) []byte {
+	body, _ := p.Encode()
+	buf := make([]byte, base.HeaderSize+len(body))
+	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
+	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
+	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
+	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
+	binary.LittleEndian.PutUint32(buf[14:18], sessionID)
+	binary.LittleEndian.PutUint32(buf[18:22], uint32(errCode))
+	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
+	copy(buf[base.HeaderSize:], body)
+	return buf
+}
+func (p *Msg_AuthLoginReq) BuildUDP(sender uint32) []byte {
+	body, _ := p.Encode()
+	buf := make([]byte, base.HeaderSize+len(body))
+	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
+	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
+	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
+	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
+	binary.LittleEndian.PutUint32(buf[14:18], sender)
+	binary.LittleEndian.PutUint32(buf[18:22], 0) // ErrorCode
+	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
+	copy(buf[base.HeaderSize:], body)
+	return buf
+}
+func (r *Msg_AuthLoginRes) Encode() ([]byte, error) {
+	return msgpack.Marshal(r)
+}
+
+func (r *Msg_AuthLoginRes) Decode(data []byte) error {
+	return msgpack.Unmarshal(data, r)
+}
+func (p *Msg_AuthLoginRes) GetID() uint32 { return Cmd_AuthLoginRes }
+func (p *Msg_AuthLoginRes) BuildTCP(errCode ErrorCode, sessionID uint32) []byte {
+	body, _ := p.Encode()
+	buf := make([]byte, base.HeaderSize+len(body))
+	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
+	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
+	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
+	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
+	binary.LittleEndian.PutUint32(buf[14:18], sessionID)
+	binary.LittleEndian.PutUint32(buf[18:22], uint32(errCode))
+	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
+	copy(buf[base.HeaderSize:], body)
+	return buf
+}
+func (p *Msg_AuthLoginRes) BuildUDP(sender uint32) []byte {
+	body, _ := p.Encode()
+	buf := make([]byte, base.HeaderSize+len(body))
+	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
+	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
+	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
+	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
+	binary.LittleEndian.PutUint32(buf[14:18], sender)
+	binary.LittleEndian.PutUint32(buf[18:22], 0) // ErrorCode
+	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
+	copy(buf[base.HeaderSize:], body)
+	return buf
+}
+func (r *Msg_MessageSendReq) Encode() ([]byte, error) {
+	return msgpack.Marshal(r)
+}
+
+func (r *Msg_MessageSendReq) Decode(data []byte) error {
+	return msgpack.Unmarshal(data, r)
+}
+func (p *Msg_MessageSendReq) GetID() uint32 { return Cmd_MessageSendReq }
+func (p *Msg_MessageSendReq) BuildTCP(errCode ErrorCode, sessionID uint32) []byte {
+	body, _ := p.Encode()
+	buf := make([]byte, base.HeaderSize+len(body))
+	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
+	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
+	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
+	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
+	binary.LittleEndian.PutUint32(buf[14:18], sessionID)
+	binary.LittleEndian.PutUint32(buf[18:22], uint32(errCode))
+	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
+	copy(buf[base.HeaderSize:], body)
+	return buf
+}
+func (p *Msg_MessageSendReq) BuildUDP(sender uint32) []byte {
+	body, _ := p.Encode()
+	buf := make([]byte, base.HeaderSize+len(body))
+	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
+	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
+	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
+	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
+	binary.LittleEndian.PutUint32(buf[14:18], sender)
+	binary.LittleEndian.PutUint32(buf[18:22], 0) // ErrorCode
+	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
+	copy(buf[base.HeaderSize:], body)
+	return buf
+}
+func (r *Msg_MessageSendRes) Encode() ([]byte, error) {
+	return msgpack.Marshal(r)
+}
+
+func (r *Msg_MessageSendRes) Decode(data []byte) error {
+	return msgpack.Unmarshal(data, r)
+}
+func (p *Msg_MessageSendRes) GetID() uint32 { return Cmd_MessageSendRes }
+func (p *Msg_MessageSendRes) BuildTCP(errCode ErrorCode, sessionID uint32) []byte {
+	body, _ := p.Encode()
+	buf := make([]byte, base.HeaderSize+len(body))
+	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
+	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
+	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
+	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
+	binary.LittleEndian.PutUint32(buf[14:18], sessionID)
+	binary.LittleEndian.PutUint32(buf[18:22], uint32(errCode))
+	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
+	copy(buf[base.HeaderSize:], body)
+	return buf
+}
+func (p *Msg_MessageSendRes) BuildUDP(sender uint32) []byte {
+	body, _ := p.Encode()
+	buf := make([]byte, base.HeaderSize+len(body))
+	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
+	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
+	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
+	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
+	binary.LittleEndian.PutUint32(buf[14:18], sender)
+	binary.LittleEndian.PutUint32(buf[18:22], 0) // ErrorCode
+	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
+	copy(buf[base.HeaderSize:], body)
+	return buf
+}
+func (r *Msg_MessageReceiveNotify) Encode() ([]byte, error) {
+	return msgpack.Marshal(r)
+}
+
+func (r *Msg_MessageReceiveNotify) Decode(data []byte) error {
+	return msgpack.Unmarshal(data, r)
+}
+func (p *Msg_MessageReceiveNotify) GetID() uint32 { return Cmd_MessageReceiveNotify }
+func (p *Msg_MessageReceiveNotify) BuildTCP(errCode ErrorCode, sessionID uint32) []byte {
+	body, _ := p.Encode()
+	buf := make([]byte, base.HeaderSize+len(body))
+	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
+	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
+	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
+	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
+	binary.LittleEndian.PutUint32(buf[14:18], sessionID)
+	binary.LittleEndian.PutUint32(buf[18:22], uint32(errCode))
+	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
+	copy(buf[base.HeaderSize:], body)
+	return buf
+}
+func (p *Msg_MessageReceiveNotify) BuildUDP(sender uint32) []byte {
+	body, _ := p.Encode()
+	buf := make([]byte, base.HeaderSize+len(body))
+	binary.LittleEndian.PutUint16(buf[0:2], base.MagicZO)
+	binary.LittleEndian.PutUint32(buf[2:6], uint32(CurrentVersion))
+	binary.LittleEndian.PutUint32(buf[6:10], p.GetID())
+	binary.LittleEndian.PutUint32(buf[10:14], uint32(len(body)))
+	binary.LittleEndian.PutUint32(buf[14:18], sender)
+	binary.LittleEndian.PutUint32(buf[18:22], 0) // ErrorCode
+	binary.LittleEndian.PutUint16(buf[22:24], 0) // Sequence (2B)
+	copy(buf[base.HeaderSize:], body)
+	return buf
+}

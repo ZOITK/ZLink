@@ -1,6 +1,7 @@
-# Python 코드 생성기
+# Python 코드 생성기 - v13.0 단일 protocol.py 출력
+import datetime
 from pathlib import Path
-from ..models import ProtocolDef, StructDef, FieldDef, PacketDef, ErrorDef
+from ..models import ProtocolDef, StructDef, FieldDef, PacketDef
 
 class PythonGenerator:
     def __init__(self, protocol: ProtocolDef):
@@ -8,187 +9,140 @@ class PythonGenerator:
 
     def render(self) -> str:
         """렌더링된 Python 코드를 문자열로 반환"""
-        return self._generate_protocol_module()
+        return self._generate_protocol_file()
 
     def generate(self, output_dir: str) -> None:
-        """output/python/protocol.py에 생성 (ZPP 규격 준수)"""
-        protocol_code = self.render()
-        output_path = Path(output_dir) / "python" / "protocol.py"
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(protocol_code)
-        print(f"✓ Python 프로토콜 생성 (ZPP 규격): {output_path}")
+        """단일 protocol.py 파일로 생성"""
+        # 출력 경로 강제: sdk/client/python/zlink/protocol
+        base_path = Path(output_dir) / "python/zlink/protocol"
+        base_path.mkdir(parents=True, exist_ok=True)
 
-    def _generate_protocol_module(self) -> str:
-        # 헤더 사이즈 미리 계산
-        tcp_hdr = self.protocol.headers.get("tcp")
-        udp_hdr = self.protocol.headers.get("udp")
-        tcp_size = sum(self.protocol.get_type(f.type_name).size for f in tcp_hdr.fields) if tcp_hdr else 16
-        udp_size = sum(self.protocol.get_type(f.type_name).size for f in udp_hdr.fields) if udp_hdr else 20
+        code = self.render()
+        with open(base_path / "protocol.py", "w", encoding="utf-8") as f:
+            f.write(code)
 
-        header = f"""# 자동 생성된 프로토콜
-# 버전: {self.protocol.version}
-# 자동 생성됨 (zlink-protocol-gen)
+        print(f"✓ Python 프로토콜 생성 완료 (protocol.py)")
 
-import struct
-import msgspec
-import asyncio
-from dataclasses import dataclass
-from typing import List, Optional, Any, Union, Dict, Type, Callable
-
-# =============================================================================
-# --- 변수 및 상수 ---
-# =============================================================================
-CURRENT_VERSION = {self.protocol.version}  # 프로토콜 현재 버전
-HEADER_SIZE = {tcp_size}      # TCP 헤더 크기
-HEADER_UDP_SIZE = {udp_size}  # UDP 헤더 크기
-"""
-        # 에러 코드 추가
-        header += "\n# --- 에러 코드 (Err_) ---\n"
-        for err in sorted(self.protocol.errors, key=lambda x: x.get_id()):
-            comment = f"  # {err.doc}" if err.doc else ""
-            header += f"Err_{err.name} = {err.get_id()}{comment}\n"
+    def _generate_protocol_file(self) -> str:
+        """protocol.py 전체 내용 생성 (ZLink 24B 표준 규격)"""
+        now_str = datetime.datetime.now().strftime("%Y-%m-%d : %H:%M:%S")
         
-        header += "\n# --- 커맨드 ID (Cmd_) ---\n"
-        for pkt in sorted(self.protocol.packets, key=lambda x: x.get_id()):
-            comment = f"  # {pkt.doc}" if pkt.doc else ""
-            header += f"Cmd_{pkt.name} = {pkt.get_id()}{comment}\n"
+        lines = []
+        lines.append(f'''# 자동 생성된 프로토콜
+# 버전: {self.protocol.version}
+# [ {now_str} ] 자동 생성됨 (zlink-protocol-gen)
+import msgspec
+import sys
+import os
+from typing import Optional, List, Dict, Any
 
-        # 디바이스 및 디스패처
-        header += f"""
-# =============================================================================
-# --- 중앙 집중형 디스패처 (Registration) ---
-# =============================================================================
-
-def Register(Engine: Any, Callback: Callable[[Any, Any], Any]):
-    \"\"\"엔진 서버에 프로토콜 파서와 비즈니스 콜백을 등록합니다. (Go와 동일)\"\"\"
-    if hasattr(Engine, 'SetUnmarshaler') and hasattr(Engine, 'AddRecvCallback'):
-        Engine.SetUnmarshaler(_Unmarshal)
-        Engine.AddRecvCallback(Callback)
-    
-    if hasattr(Engine, 'SetHeaderInfo'):
-        Engine.SetHeaderInfo(HEADER_SIZE, PackHeader.Decode)
-
-def _Unmarshal(CmdID: int, Body: bytes) -> Optional[Any]:
-    \"\"\"커맨드 ID에 따라 데이터를 해당 클래스로 자동 파싱 (비공개)\"\"\"
-    Cls = PacketRegistry.GetPacketClass(CmdID)
-    if not Cls: return None
-    try:
-        return Cls.Decode(Body)
-    except:
-        return None
+# SDK 또는 Example 환경에서 모두 작동하도록 경로 설정
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from zlink.network.tcp_client import Pack  # SDK 엔진 조립 함수 참조
 
 class PacketRegistry:
-    \"\"\"커맨드 ID와 패킷 클래스를 매핑하는 레지스트리\"\"\"
-    _Registry: Dict[int, Type] = {{}}
-
+    _Registry = {{}}
     @classmethod
-    def GetPacketClass(cls, CmdID: int) -> Optional[Type]:
-        return cls._Registry.get(CmdID)
+    def Unmarshal(cls, cmd: int, data: bytes) -> Any:
+        msg_cls = cls._Registry.get(cmd)
+        if not msg_cls: return None
+        return msg_cls.Decode(data)
 
-# =============================================================================
-# --- 패킷 빌더 및 공통 코덱 ---
-# =============================================================================
+def Register(client, callback):
+    """엔진 서버 또는 클라이언트에 프로토콜 지식과 비즈니스 콜백을 등록합니다."""
+    # 엔진에 마샬러/언마샬러 주입 (Symmetry)
+    def packer(msg, use_udp, session_id=0):
+        if use_udp:
+            return msg.BuildUDP(session_id)
+        else:
+            return msg.BuildTCP(0)
 
-def Encode(Obj: Any) -> bytes: return msgspec.msgpack.encode(Obj)
-def Decode(Cls: Any, Data: bytes) -> Any: return msgspec.msgpack.decode(Data, type=Cls)
+    client.set_protocol(PacketRegistry.Unmarshal, packer)
+    client.add_recv_callback(callback)
 
-# =============================================================================
-# --- 패킷 헤더 (정의 기반 동적 생성) ---
-# =============================================================================
-"""
-        for h_name, h_def in self.protocol.headers.items():
-            class_name = f"PackHeader{h_name.upper()}"
-            if h_name.lower() == "tcp": class_name = "PackHeader"
-            
-            header += f"@dataclass\nclass {class_name}:\n"
-            header += f"    \"\"\"{h_name.upper()} 패킷 헤더\"\"\"\n"
-            
-            struct_fmt = "<"
-            fields_str = []
-            for f in h_def.fields:
-                py_type = self._get_python_type(f)
-                header += f"    {f.name}: {py_type} = 0\n"
-                fmt_part = "I"
-                t_def = self.protocol.get_type(f.type_name)
-                if t_def:
-                    if t_def.name == "uint8": fmt_part = "B"
-                    elif t_def.name == "uint16": fmt_part = "H"
-                    elif t_def.name == "uint32": fmt_part = "I"
-                    elif t_def.name == "int32": fmt_part = "i"
-                    elif t_def.name == "int64": fmt_part = "q"
-                struct_fmt += fmt_part
-                fields_str.append(f"self.{f.name}")
-            
-            header += f"    def Encode(self) -> bytes: return struct.pack(\"{struct_fmt}\", {', '.join(fields_str)})\n"
-            header += "    @classmethod\n"
-            header += f"    def Decode(cls, Data: bytes):\n"
-            header += f"        if len(Data) < struct.calcsize(\"{struct_fmt}\"): return None\n"
-            header += f"        vals = struct.unpack(\"{struct_fmt}\", Data[:struct.calcsize(\"{struct_fmt}\")])\n"
-            header += f"        return cls(*vals)\n\n"
-
-        header += """
-# =============================================================================
-# --- 데이터 구조체 및 패킷 정의 ---
-# =============================================================================
-"""
-        body_parts = []
-        for struct in sorted(self.protocol.structs.values(), key=lambda x: x.name):
-            body_parts.append(self._generate_struct_def(struct))
+# --- 커맨드 ID (Cmd_) ---
+''')
+        # Cmd_ 상단 정의
         for pkt in sorted(self.protocol.packets, key=lambda x: x.get_id()):
-            body_parts.append(self._generate_packet_def(pkt))
+            lines.append(f"Cmd_{pkt.name} = {pkt.get_id()}")
 
-        header += "\n\n".join(body_parts)
+        lines.append("\n# --- 에러 코드 (Err_) ---")
+        for e in sorted(self.protocol.errors, key=lambda x: x.index):
+            lines.append(f"Err_{e.name} = {e.index}")
 
-        # --- 패킷 레지스트리 지연 등록 (NameError 방지용) ---
-        header += "\n\n# --- 패킷 레지스트리 등록 ---\n"
+        lines.append("")
+
+        # Msg_ 공통 구조체
+        for s in sorted(self.protocol.structs.values(), key=lambda x: x.name):
+            lines.append(self._generate_struct_def(s))
+            lines.append("")
+
+        # Msg_ 패킷 구조체
         for pkt in sorted(self.protocol.packets, key=lambda x: x.get_id()):
-            header += f"PacketRegistry._Registry[Cmd_{pkt.name}] = Msg_{pkt.name}\n"
+            lines.append(self._generate_packet_def(pkt))
+            lines.append("")
 
-        return header
+        # 패킷 레지스트리 등록부
+        lines.append("# --- 패킷 레지스트리 등록 ---")
+        for pkt in sorted(self.protocol.packets, key=lambda x: x.get_id()):
+            lines.append(f"PacketRegistry._Registry[Cmd_{pkt.name}] = Msg_{pkt.name}")
+
+        return "\n".join(lines)
 
     def _generate_struct_def(self, struct: StructDef) -> str:
-        lines = [f"class Msg_{struct.name}(msgspec.Struct, omit_defaults=True, forbid_unknown_fields=False):"]
-        if struct.doc: lines.append(f'    """{struct.doc}"""')
-        if not struct.fields: lines.append("    pass")
+        doc = struct.doc if struct.doc else struct.name
+        lines = [
+            f"class Msg_{struct.name}(msgspec.Struct, omit_defaults=True, array_like=True):",
+            f"    \"\"\"{doc}\"\"\"",
+        ]
+        if not struct.fields:
+            lines.append("    pass")
         else:
             for field in struct.fields:
-                py_type = self._get_python_type(field)
-                comment = f"  # {field.doc}" if field.doc else ""
-                lines.append(f"    {field.name}: Optional[{py_type}] = None{comment}")
+                py_type = self._get_py_type(field)
+                doc_str = f" # {field.doc}" if field.doc else ""
+                lines.append(f"    {field.name}: Optional[{py_type}] = None{doc_str}")
+        
         lines.append("")
         lines.append("    def Encode(self) -> bytes: return msgspec.msgpack.encode(self)")
-        lines.append("    @classmethod\n    def Decode(cls, Data: bytes): return msgspec.msgpack.decode(Data, type=cls)")
+        lines.append("    @classmethod")
+        lines.append(f"    def Decode(cls, Data: bytes): return msgspec.msgpack.decode(Data, type=cls)")
         return "\n".join(lines)
 
     def _generate_packet_def(self, pkt: PacketDef) -> str:
-        lines = [f"class Msg_{pkt.name}(msgspec.Struct, omit_defaults=True, array_like=True):"]
-        if pkt.doc: lines.append(f'    """{pkt.doc}"""')
-        lines.append(f"    ID = Cmd_{pkt.name}")
-        if not pkt.fields: pass
-        else:
-            for field in pkt.fields:
-                py_type = self._get_python_type(field)
-                comment = f"  # {field.doc}" if field.doc else ""
-                lines.append(f"    {field.name}: Optional[{py_type}] = None{comment}")
+        doc = pkt.doc if pkt.doc else pkt.name
+        lines = [
+            f"class Msg_{pkt.name}(msgspec.Struct, omit_defaults=True, array_like=True):",
+            f"    \"\"\"{doc}\"\"\"",
+            f"    ID = Cmd_{pkt.name}",
+        ]
+        for field in pkt.fields:
+            py_type = self._get_py_type(field)
+            doc_str = f" # {field.doc}" if field.doc else ""
+            lines.append(f"    {field.name}: Optional[{py_type}] = None{doc_str}")
+
         lines.append("")
         lines.append("    def Encode(self) -> bytes: return msgspec.msgpack.encode(self)")
-        lines.append("    @classmethod\n    def Decode(cls, Data: bytes): return msgspec.msgpack.decode(Data, type=cls)")
+        lines.append("    @classmethod")
+        lines.append(f"    def Decode(cls, Data: bytes): return msgspec.msgpack.decode(Data, type=cls)")
         lines.append("    def GetID(self) -> int: return self.ID")
+        
+        # --- 핵심 개선: 엔진 SDK의 Pack 함수를 사용하여 조립 (SSOT) ---
         lines.append("    def BuildTCP(self, ErrorCode: int = 0) -> bytes:")
-        lines.append("        Body = self.Encode()\n        Hdr = PackHeader(Version=CURRENT_VERSION, Command=self.ID, Length=len(Body), Error=ErrorCode)")
-        lines.append("        return Hdr.Encode() + Body")
+        lines.append(f"        return Pack(self.ID, self.Encode(), error_code=ErrorCode, version={self.protocol.version})")
         lines.append("    def BuildUDP(self, Sender: int) -> bytes:")
-        lines.append("        Body = self.Encode()\n        Hdr = PackHeaderUDP(Version=CURRENT_VERSION, Command=self.ID, Length=len(Body), Sender=Sender, Error=0)")
-        lines.append("        return Hdr.Encode() + Body")
+        lines.append(f"        return Pack(self.ID, self.Encode(), session_id=Sender, version={self.protocol.version})")
+        
         return "\n".join(lines)
 
-    def _get_python_type(self, field: FieldDef) -> str:
+    def _get_py_type(self, field: FieldDef) -> str:
         base_type = field.element_type
-        if base_type in self.protocol.structs: base_type = f'"{base_type}"'
+        if base_type in self.protocol.structs:
+            base_type = f"Msg_{base_type}"
         else:
             type_def = self.protocol.get_type(base_type)
-            if type_def: base_type = type_def.python
-        res = base_type
-        for _ in range(field.array_dimensions): res = f"List[{res}]"
-        return res
+            if type_def:
+                base_type = type_def.python
+        for _ in range(field.array_dimensions):
+            base_type = f"List[{base_type}]"
+        return base_type

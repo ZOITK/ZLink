@@ -2,116 +2,150 @@
 package network
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"log/slog"
 	"net"
 	"sync"
 	"sync/atomic"
+	"time"
 
-	 "zlink/base"
+	"zlink/base"
 )
 
 // ISession - 이제 base 패키지의 ISession을 사용합니다.
-// 비즈니스 로직(Handler)은 실제 Session 구조체 대신 base.ISession 인터페이스를 참조합니다.
 type ISession = base.ISession
 
 // Session - 클라이언트 연결 세션 (Infrastructure SDK)
 type Session struct {
-	id         uint32
-	mu         sync.Mutex
-	conn       net.Conn
-	udpServer  *UDPServer
-	UDPChecked atomic.Bool
-	Metadata   any
-	RemoteAddr string
+	id           uint32
+	mu           sync.Mutex
+	conn         net.Conn      // TCP 연결 (nil일 수 있음)
+	udpAddr      *net.UDPAddr  // 바인딩된 UDP 주소 (nil일 수 있음)
+	server       *Server
+	udpServer    *UDPServer    // 공용 UDP 전송 엔진
+	LastActivity atomic.Int64  // 마지막 활동 시간 (UnixNano)
+	Metadata     any
+	RemoteAddr   string        // 대표 주소 문자열
 }
 
 // NewSession - 새 세션 생성
-func NewSession(id uint32, conn net.Conn) *Session {
+func NewSession(srv *Server, conn net.Conn, id uint32) *Session {
 	addr := ""
-	if conn != nil { addr = conn.RemoteAddr().String() }
-	return &Session{ id: id, conn: conn, RemoteAddr: addr }
+	if conn != nil {
+		addr = conn.RemoteAddr().String()
+	}
+	return &Session{
+		id:         id,
+		conn:       conn,
+		server:     srv,
+		RemoteAddr: addr,
+	}
 }
 
-func (s *Session) ID() uint32 { return s.id }
-func (s *Session) GetMetadata() any { return s.Metadata }
+func (s *Session) ID() uint32           { return s.id }
+func (s *Session) GetMetadata() any     { return s.Metadata }
 func (s *Session) SetMetadata(data any) { s.Metadata = data }
 
 func (s *Session) SetUDPServer(server *UDPServer) { s.udpServer = server }
-func (s *Session) GetConn() net.Conn { return s.conn }
+func (s *Session) GetConn() net.Conn              { return s.conn }
+
+// SetUDPAddr - UDP 주소를 바인딩합니다. (엔진에 의해 호출됨)
+func (s *Session) SetUDPAddr(addr *net.UDPAddr) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.udpAddr = addr
+	s.LastActivity.Store(time.Now().UnixNano())
+}
+
+// IsUDPReady - UDP 전송이 가능한 상태인지 확인합니다.
+func (s *Session) IsUDPReady() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.udpAddr != nil
+}
 
 // SendRaw - 원시 바이트 전송 (TCP)
 func (s *Session) SendRaw(data []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.conn == nil { return fmt.Errorf("연결 없음") }
+	if s.conn == nil {
+		return fmt.Errorf("연결 없음")
+	}
 	_, err := s.conn.Write(data)
 	return err
 }
 
-// SendRawUDP - 원시 바이트 UDP 전송
-func (s *Session) SendRawUDP(data []byte, addr string, port int) error {
-	if s.udpServer == nil { return fmt.Errorf("UDP 서버 없음") }
-	s.udpServer.SendTo(data, addr, port)
+// SendRawUDP - 바인딩된 UDP 주소로 원시 데이터 전송
+func (s *Session) SendRawUDP(data []byte) error {
+	s.mu.Lock()
+	addr := s.udpAddr
+	s.mu.Unlock()
+
+	if addr == nil || s.udpServer == nil {
+		return fmt.Errorf("UDP 바인딩되지 않았거나 서버가 설정되지 않음")
+	}
+	s.udpServer.SendTo(data, addr.IP.String(), addr.Port)
 	return nil
 }
 
 func (s *Session) Close() {
-	if s.conn != nil { s.conn.Close() }
+	if s.conn != nil {
+		s.conn.Close()
+	}
 }
 
-// HandleConnection - 세션의 패킷 수신 루프를 시작합니다.
-// 서버에 설정된 Unmarshaler와 OnRecvPacket을 사용하여 자동으로 비즈니스 로직을 연결합니다.
-func (s *Session) HandleConnection(srv *Server) {
+// Start - 세션의 패킷 수신 루프를 시작합니다.
+func (s *Session) Start() {
 	for {
-		// 1. 패킷 파싱 (엔진 기본 파서 사용)
-		cmd, body, err := s.tcpParser(srv)
+		// 1. 패킷 완성 (Framing)
+		packet, err := s.tcpParser()
 		if err != nil {
-			if err != io.EOF { slog.Warn("[zLink/Session] 데이터 읽기 실패", "err", err, "addr", s.RemoteAddr) }
+			if err != io.EOF {
+				slog.Warn("[zLink/Session] 데이터 읽기 실패", "err", err, "addr", s.RemoteAddr)
+			}
 			break
 		}
-		
-		// 2. 자동 객체 변환 및 등록된 모든 비즈니스 로직 호출
-		if srv.Unmarshaler != nil {
-			msg, err := srv.Unmarshaler(cmd, body)
-			if err == nil && msg != nil {
-				// 등록된 모든 리스너에게 객체 전달
-				for _, callback := range srv.OnRecvCallbacks {
-					callback(s, msg)
-				}
-			}
-		}
 
-		// 3. 버퍼 반납
-		if body != nil { srv.BufferPool.PutBody(body) }
+		// 2. 엔진의 통합 핸들러에 위임 (Organic Integration)
+		s.server.HandlePacket(s, packet, nil)
+
+		// 3. 임시 패킷 데이터는 GC 대상이 됨 (필요시 BufferPool로 관리 가능하지만 우선 단순화)
 	}
+	s.Close()
 }
 
-// tcpParser - 내부용 패킷 읽기 도구
-func (s *Session) tcpParser(srv *Server) (uint32, []byte, error) {
-	pool := srv.BufferPool
-	hdrSize := srv.TCPHeaderSize
-	hdrBuf := pool.GetHeader() // GetHeader는 충분한 크기(예: 64바이트)를 반환한다고 가정함
+// tcpParser - 완성된 패킷 한 덩어리를 만들어냅니다. (ZLink 24B 표준 규격)
+func (s *Session) tcpParser() ([]byte, error) {
+	pool := s.server.BufferPool
+	hdrSize := base.HeaderSize
+
+	// 1. 헤더 먼저 읽기
+	hdrBuf := pool.GetHeader()
 	defer pool.PutHeader(hdrBuf)
 
-	// 정해진 크기만큼 헤더 읽기
-	if _, err := io.ReadFull(s.conn, hdrBuf[:hdrSize]); err != nil { return 0, nil, err }
-
-	// [정규화] 하드코딩된 base.HeaderTCP 대신 주입된 디코더 사용
-	if srv.TCPHeaderDecoder == nil {
-		return 0, nil, fmt.Errorf("TCP 헤더 디코더가 설정되지 않았습니다")
+	if _, err := io.ReadFull(s.conn, hdrBuf[:hdrSize]); err != nil {
+		return nil, err
 	}
-	cmd, length, _, err := srv.TCPHeaderDecoder(hdrBuf[:hdrSize])
-	if err != nil { return 0, nil, err }
 
-	var body []byte
+	// 2. 유효성 검증 (Magic Number 'ZO') 및 길이 파악
+	magic := binary.LittleEndian.Uint16(hdrBuf[0:2])
+	if magic != base.MagicZO {
+		return nil, fmt.Errorf("invalid magic number: %x", magic)
+	}
+
+	length := binary.LittleEndian.Uint32(hdrBuf[10:14]) // ZLink 표준 오프셋 10 (Version 4B 확장 반영)
+
+	// 3. 전체 패킷 덩어리 생성 (Header + Body)
+	fullPacket := make([]byte, hdrSize+int(length))
+	copy(fullPacket[:hdrSize], hdrBuf[:hdrSize])
+
 	if length > 0 {
-		body = pool.GetBody(length)
-		if _, err := io.ReadFull(s.conn, body); err != nil {
-			pool.PutBody(body)
-			return 0, nil, err
+		if _, err := io.ReadFull(s.conn, fullPacket[hdrSize:]); err != nil {
+			return nil, err
 		}
 	}
-	return cmd, body, nil
+
+	return fullPacket, nil
 }

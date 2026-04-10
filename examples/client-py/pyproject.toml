@@ -1,11 +1,8 @@
 [project]
 name = "zlink-example-client-py"
-version = "0.1.0"
-description = "ZLink Python Example Client"
+version = "1.0.0"
+description = "ZLink Python Client Example"
+requires-python = ">=3.8"
 dependencies = [
-    "msgpack>=1.0.0",
     "msgspec>=0.18.0",
 ]
-
-[tool.uv]
-dev-dependencies = []

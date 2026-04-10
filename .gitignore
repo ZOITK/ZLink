@@ -81,7 +81,13 @@ obj/
 # =============================================================================
 # --- Project Specific ---
 # =============================================================================
-# Generator outputs are transient (local files are copied elsewhere)
+# Generator outputs (생성 폴더만 추적 안 함, 각 examples에 배포됨)
 generator/output/
 
 generator/schemas/moduta.yaml
+
+# Examples - SDK 및 Protocol 참조 전략
+# - examples/server-go/protocol: generator가 생성 (examples/server-go/protocol/)
+# - examples/client-py/zlink: symlink로 SDK 참조 (../../sdk/client/python/zlink)
+# - examples/client-unity/zlink: symlink로 SDK 참조 (../../sdk/client/unity/zlink)
+# - examples/client-unity/Assets/Zlink: symlink (자동 무시)
