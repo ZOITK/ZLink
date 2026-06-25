@@ -36,7 +36,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/vmihailenco/msgpack/v5"
-	"zlink/base"
+	"github.com/ZOITK/ZLink/sdk/server/zlink/base"
 )""")
 
         # 2. --- 변수 및 상수 ---

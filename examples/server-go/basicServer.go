@@ -3,8 +3,8 @@ package main
 import (
 	"log/slog"
 	"os"
-	"zlink/logger"
-	"zlink/network"
+	"github.com/ZOITK/ZLink/sdk/server/zlink/logger"
+	"github.com/ZOITK/ZLink/sdk/server/zlink/network"
 	"zlink-example-server/protocol"
 )
 
