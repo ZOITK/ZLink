@@ -11,11 +11,30 @@ The ZLink Protocol Generator is the core tool of the ZLink socket framework. It 
 
 ## 🛠 Usage
 
+### Option 1: Using Makefile (Local Development)
+
 1. **Define Schema**: Modify YAML files in the `schemas/` folder to define the packet structure.
-2. **Generate Code**: Run the following command in the root or this folder.
+2. **Generate Code**: Run the following command in the generator folder.
    ```bash
-   make gen
+   make gen schemas=./schemas/your_schema.yaml output=<destination_dir>
    ```
+
+### Option 2: Using `uv tool install` (Standalone CLI)
+
+For external projects (e.g., game servers), install the generator as a system-wide tool:
+
+```bash
+# Install from GitHub
+uv tool install git+https://github.com/ZOITK/ZLink#subdirectory=generator
+
+# Or install from local checkout
+uv tool install <path_to_zlink>/generator
+```
+
+Then use it anywhere:
+```bash
+protocol-gen --schema moduta.yaml --go-out protocol.go --cs-out Protocol.cs
+```
 
 ---
 
@@ -41,11 +60,30 @@ ZLink 프로토콜 생성기는 ZLink 소켓 프레임워크의 핵심인 자동
 
 ## 🛠 사용 방법
 
+### 방법 1: Makefile 사용 (로컬 개발)
+
 1. **스키마 정의**: `schemas/` 폴더 내의 YAML 파일을 수정하여 패킷 구조를 정의합니다.
-2. **코드 생성**: 루트 또는 본 폴더에서 다음 명령을 실행합니다.
+2. **코드 생성**: generator 폴더에서 다음 명령을 실행합니다.
    ```bash
-   make gen
+   make gen schemas=./schemas/your_schema.yaml output=<destination_dir>
    ```
+
+### 방법 2: `uv tool install` 사용 (설치형 CLI)
+
+게임 서버 같은 외부 프로젝트에서는 생성기를 시스템 전역 도구로 설치합니다:
+
+```bash
+# GitHub에서 설치
+uv tool install git+https://github.com/ZOITK/ZLink#subdirectory=generator
+
+# 또는 로컬 체크아웃에서
+uv tool install <zlink_경로>/generator
+```
+
+그 후 어디서든 사용 가능:
+```bash
+protocol-gen --schema moduta.yaml --go-out protocol.go --cs-out Protocol.cs
+```
 
 ---
 
