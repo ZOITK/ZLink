@@ -90,4 +90,4 @@ generator/schemas/moduta.yaml
 # - examples/server-go/protocol: generator가 생성 (examples/server-go/protocol/)
 # - examples/client-py/zlink: symlink로 SDK 참조 (../../sdk/client/python/zlink)
 # - examples/client-unity/zlink: symlink로 SDK 참조 (../../sdk/client/unity/zlink)
-# - examples/client-unity/Assets/Zlink: symlink (자동 무시)
+# - examples/client-unity/Assets/Zlink: symlink (자동 무시)generator/schemas/moduta.yaml
