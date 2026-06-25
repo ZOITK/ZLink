@@ -36,6 +36,21 @@ Then use it anywhere:
 protocol-gen --schema moduta.yaml --go-out protocol.go --cs-out Protocol.cs
 ```
 
+### Option 3: Scaffold a New Project (`init`)
+
+In a new project, generate the boilerplate (`Makefile` + `schema.yaml`) with one command:
+
+```bash
+cd my-new-project
+protocol-gen init          # creates ./protocol-gen/{Makefile, schema.yaml}
+cd protocol-gen
+# edit schema.yaml, then:
+make protocol              # → ./protocol.go, ./protocol.cs
+```
+
+- Existing files are **never overwritten** (skipped safely).
+- Override output paths: `make protocol GO_OUT=../server/protocol.go`
+
 ---
 
 ## 🚚 Deployment & Sync Mechanism

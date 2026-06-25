@@ -15,6 +15,15 @@ def main():
     """
     CLI 진입점 함수입니다.
     """
+    # 'init' 서브커맨드: 새 프로젝트 보일러플레이트(Makefile + schema.yaml) 생성
+    # 기존 사용법(protocol-gen --schema ...)과 충돌하지 않도록 argparse 이전에 분기합니다.
+    if len(sys.argv) > 1 and sys.argv[1] == "init":
+        from .scaffold import run_init
+        # init 다음 인자가 있으면 생성 위치로 사용 (없으면 ./protocol-gen)
+        target = sys.argv[2] if len(sys.argv) > 2 else None
+        run_init(target)
+        return
+
     parser = argparse.ArgumentParser(description="zlink-protocol-gen - 프로토콜 코드 생성기")
     
     # 위치 인자
