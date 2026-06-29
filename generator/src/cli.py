@@ -6,9 +6,12 @@ from typing import List, Optional
 
 from .loader import load_protocol
 from .validator import validate_protocol
+import yaml
+
 from .generators.python_generator import PythonGenerator
 from .generators.go_generator import GoGenerator
 from .generators.csharp_generator import CSharpGenerator
+from .generators.markdown_generator import MarkdownGenerator
 
 
 def main():
@@ -38,6 +41,7 @@ def main():
     parser.add_argument("--go-out", help="Go 프로토콜 출력 파일 경로")
     parser.add_argument("--cs-out", help="C# 프로토콜 출력 파일 경로")
     parser.add_argument("--py-out", help="Python 프로토콜 출력 파일 경로")
+    parser.add_argument("--md-out", help="마크다운 명세서 출력 경로 (미지정 시 자동 위치, 항상 생성됨)")
 
     args = parser.parse_args()
 
@@ -55,7 +59,8 @@ def main():
             languages=[l.strip() for l in args.languages.split(",")],
             go_out=args.go_out,
             cs_out=args.cs_out,
-            py_out=args.py_out
+            py_out=args.py_out,
+            md_out=args.md_out
         )
         print("\n✓ 코드 생성 완료!")
     except Exception as e:
@@ -64,12 +69,13 @@ def main():
 
 
 def generate_protocol(
-    schema_path: str, 
-    output_dir: str, 
+    schema_path: str,
+    output_dir: str,
     languages: List[str],
     go_out: Optional[str] = None,
     cs_out: Optional[str] = None,
-    py_out: Optional[str] = None
+    py_out: Optional[str] = None,
+    md_out: Optional[str] = None
 ) -> None:
     print(f"📝 프로토콜 로드: {schema_path}")
     protocol = load_protocol(schema_path)
@@ -107,6 +113,14 @@ def generate_protocol(
             save_generated_code(gen, out)
         else:
             print(f"   ⚠️  알 수 없는 언어: {lang}")
+
+    # 마크다운 명세서는 언어 선택과 무관하게 항상 생성합니다 (클라이언트 개발용 문서).
+    # 원본 구조(카테고리/req-res 짝/필드 설명)를 보존하기 위해 raw YAML을 직접 사용합니다.
+    with open(schema_path, "r", encoding="utf-8") as f:
+        raw_spec = yaml.safe_load(f)
+    md_gen = MarkdownGenerator(raw_spec)
+    md_path = md_out if md_out else str(Path(output_dir) / "Protocol.md")
+    save_generated_code(md_gen, md_path)
 
 def save_generated_code(generator, output_file: str) -> None:
     path = Path(output_file).resolve()
