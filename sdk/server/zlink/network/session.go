@@ -59,6 +59,30 @@ func (s *Session) SetUDPAddr(addr *net.UDPAddr) {
 	s.LastActivity.Store(time.Now().UnixNano())
 }
 
+// TryBindUDP - UDP 주소를 '최초 1회만' 바인딩하고 잠급니다.
+// 미바인딩 상태면 바인딩 후 true, 이미 같은 주소면 활동 갱신 후 true,
+// 이미 '다른' 주소로 잠겨 있으면 false(하이재킹/오발신/NAT 재매핑 차단).
+func (s *Session) TryBindUDP(addr *net.UDPAddr) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.udpAddr == nil {
+		// 최초 바인딩
+		s.udpAddr = addr
+	} else if !(s.udpAddr.IP.Equal(addr.IP) && s.udpAddr.Port == addr.Port) {
+		// 이미 잠김 + 다른 주소 → 거부
+		return false
+	}
+	s.LastActivity.Store(time.Now().UnixNano())
+	return true
+}
+
+// GetUDPAddr - 바인딩된 UDP 주소를 잠금 하에 반환합니다. (리퍼 등 외부 조회용)
+func (s *Session) GetUDPAddr() *net.UDPAddr {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.udpAddr
+}
+
 // IsUDPReady - UDP 전송이 가능한 상태인지 확인합니다.
 func (s *Session) IsUDPReady() bool {
 	s.mu.Lock()

@@ -22,6 +22,9 @@ type Server struct {
 	BufferPool    *BufferPool
 	lastSessionID uint32
 
+	// UDPIdleTimeout - UDP 전용 세션이 이 시간 동안 무활동이면 만료(누수 방지). 0이면 리퍼 비활성.
+	UDPIdleTimeout time.Duration
+
 	// Sessions - 활성화된 세션 통합 관리
 	sessions      sync.Map // map[uint32]*Session
 
@@ -79,20 +82,6 @@ func (s *Server) getOrCreateUDPSession(addr *net.UDPAddr) *Session {
 	return newSess
 }
 
-// findSessionsByIP - IP 주소를 기반으로 모든 활성 세션을 검색합니다. (NAT 대응)
-func (s *Server) findSessionsByIP(ip string) []*Session {
-	var results []*Session
-	s.sessions.Range(func(key, value any) bool {
-		sess := value.(*Session)
-		remoteIP, _, _ := net.SplitHostPort(sess.RemoteAddr)
-		if remoteIP == ip {
-			results = append(results, sess)
-		}
-		return true
-	})
-	return results
-}
-
 // HandlePacket - 수신된 원시 패킷을 프로토콜 정의에 따라 자동으로 메시지로 변환하여 전달
 func (s *Server) HandlePacket(sess base.ISession, data []byte, addr *net.UDPAddr) {
 	// 1. 헤더 유효성 및 기본 정보 추출
@@ -107,35 +96,33 @@ func (s *Server) HandlePacket(sess base.ISession, data []byte, addr *net.UDPAddr
 
 	cmd := binary.LittleEndian.Uint32(data[6:10])
 	sessionID := binary.LittleEndian.Uint32(data[14:18])
-// 2. [유기적 세션 통합] 세션 식별 로직
-if sess == nil && addr != nil {
-	// 2-1. 정규 ID가 있는 경우 (가장 확실함)
-	if sessionID > 0 {
-		if val, ok := s.sessions.Load(sessionID); ok {
-			realSess := val.(*Session)
-			// UDP 주소 바인딩 (메서드 사용)
-			realSess.SetUDPAddr(addr)
-			sess = realSess
-		}
-	}
-
-	// 2-2. ID가 0인 경우 IP 매칭 (NAT 안전 모드)
-	if sess == nil {
-		ip := addr.IP.String()
-		candidates := s.findSessionsByIP(ip)
-
-		// NAT 안전 매칭: 해당 IP를 쓰는 세션이 서버에 '단 하나'뿐일 때만 자동 통합
-		if len(candidates) == 1 {
-			sess = candidates[0]
-			sess.(*Session).SetUDPAddr(addr)
-			slog.Debug("[zLink/Engine] IP 기반 유기적 세션 바인딩", "id", sess.ID(), "addr", addr.String())
-		} else {
-			// IP가 겹치거나 아예 없다면 신규 독립 세션 생성 (나중에 ID로 합쳐짐)
+	// 2. [서버 권위 세션 식별] 정합성 판단은 100% 서버가 한다.
+	//    클라가 '송신을 참는' 식의 책임을 지지 않으며, 서버 발급 ID가 없는
+	//    UDP는 신뢰하지 않고 드롭한다. (IP 추측 휴리스틱 제거)
+	if sess == nil && addr != nil {
+		if sessionID > 0 {
+			// 2-1. 정규 ID 경로: 서버가 발급한 세션에만 바인딩 (최초 1회 잠금)
+			if val, ok := s.sessions.Load(sessionID); ok {
+				realSess := val.(*Session)
+				if realSess.TryBindUDP(addr) {
+					sess = realSess
+				} else {
+					// 잠긴 세션에 다른 주소 → 하이재킹/오발신/NAT 재매핑 → 드롭
+					return
+				}
+			} else {
+				// 미지(만료/위조) ID → 드롭
+				return
+			}
+		} else if s.TCP == nil {
+			// 2-2. UDP 단독 모드: ID=0은 정상. 주소(IP:port) 기준으로 세션 식별.
+			//      full addr 키라 같은 공인 IP의 다른 단말(다른 port)은 자연히 분리됨(NAT-safe).
 			sess = s.getOrCreateUDPSession(addr)
+		} else {
+			// 2-3. 혼합 모드에서 ID=0 → 클라가 아직 ID를 학습하기 전. 추측하지 않고 드롭.
+			return
 		}
 	}
-}
-
 
 	// 세션을 찾지 못한 경우 드롭 (TCPBound에서만 발생)
 	if sess == nil {
@@ -204,6 +191,7 @@ func NewServer(tcpPort, udpPort int) *Server {
 		BufferPool:      NewBufferPool(),
 		OnRecvCallbacks: make([]func(sess base.ISession, msg any), 0),
 		lastSessionID:   1000,
+		UDPIdleTimeout:  60 * time.Second, // UDP 전용 세션 기본 유휴 만료(누수 방지)
 	}
 
 	// TCP 포트가 0이 아니면 TCP 서버 생성
@@ -254,6 +242,59 @@ func (s *Server) handleNewConnection(conn net.Conn) {
 	}()
 }
 
+// removeUDPSession - UDP 전용 세션을 sessions/udpSessions 양쪽에서 제거하고 종료 콜백을 호출합니다.
+func (s *Server) removeUDPSession(sess *Session) {
+	s.sessions.Delete(sess.ID())
+	if addr := sess.GetUDPAddr(); addr != nil {
+		s.udpSessions.Delete(addr.String())
+	}
+	if s.OnSessionClose != nil {
+		s.OnSessionClose(sess)
+	}
+}
+
+// reapIdleUDPSessions - 기준 시각(now, UnixNano) 대비 유휴 초과한 UDP 전용 세션을 한 번 정리합니다.
+// TCP 세션(conn!=nil)은 자체 수명관리(수신 루프 EOF) 대상이라 건드리지 않습니다.
+// 반환값은 정리된 세션 수(테스트/관측용).
+func (s *Server) reapIdleUDPSessions(now int64) int {
+	timeout := int64(s.UDPIdleTimeout)
+	if timeout <= 0 {
+		return 0
+	}
+	reaped := 0
+	s.sessions.Range(func(key, value any) bool {
+		sess := value.(*Session)
+		if sess.conn != nil {
+			return true // TCP 세션은 제외
+		}
+		if now-sess.LastActivity.Load() > timeout {
+			s.removeUDPSession(sess)
+			reaped++
+		}
+		return true
+	})
+	return reaped
+}
+
+// startReaper - 유휴 UDP 세션 정리 고루틴을 가동합니다. (UDPIdleTimeout>0일 때만)
+func (s *Server) startReaper() {
+	if s.UDPIdleTimeout <= 0 {
+		return
+	}
+	// 점검 주기: 타임아웃의 1/2 (최소 1초)
+	interval := s.UDPIdleTimeout / 2
+	if interval < time.Second {
+		interval = time.Second
+	}
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for range ticker.C {
+			s.reapIdleUDPSessions(time.Now().UnixNano())
+		}
+	}()
+}
+
 // AddRecvCallback - 새로운 데이터 수신 콜백 등록
 func (s *Server) AddRecvCallback(cb func(sess base.ISession, msg any)) {
 	s.OnRecvCallbacks = append(s.OnRecvCallbacks, cb)
@@ -263,6 +304,7 @@ func (s *Server) AddRecvCallback(cb func(sess base.ISession, msg any)) {
 func (s *Server) Start() error {
 	// UDP 서버가 있으면 기동 (TCP 유무에 따라 블로킹 방식 결정)
 	if s.UDP != nil {
+		s.startReaper() // 유휴 UDP 세션 누수 방지
 		if s.TCP == nil {
 			// Standalone 모드: UDP가 메인 블로킹 루프
 			slog.Info("[zLink/Engine] Standalone UDP 서버 기동", "port", s.UDPPort)
