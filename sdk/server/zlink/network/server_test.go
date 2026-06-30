@@ -121,6 +121,52 @@ func TestReapIdleUDPSession(t *testing.T) {
 	}
 }
 
+// mockSession - BroadcastTo 검증용 가짜 세션 (전송 바이트만 기록)
+type mockSession struct {
+	id       uint32
+	udpReady bool
+	sent     [][]byte
+}
+
+func (m *mockSession) ID() uint32                { return m.id }
+func (m *mockSession) SendRaw(d []byte) error    { m.sent = append(m.sent, d); return nil }
+func (m *mockSession) SendRawUDP(d []byte) error { m.sent = append(m.sent, d); return nil }
+func (m *mockSession) Close()                    {}
+func (m *mockSession) GetMetadata() any          { return nil }
+func (m *mockSession) SetMetadata(any)           {}
+func (m *mockSession) IsUDPReady() bool          { return m.udpReady }
+
+// TestBroadcastToPacksOnce - N명에게 보내도 패킹은 1회, exceptID는 제외되는지 검증
+func TestBroadcastToPacksOnce(t *testing.T) {
+	s := NewServer(0, 0)
+
+	packCount := 0
+	s.Protocol.Packer = func(msg any, isUDP bool, sid uint32) ([]byte, error) {
+		packCount++
+		return []byte("PACKED"), nil
+	}
+
+	m1 := &mockSession{id: 1001, udpReady: true}
+	m2 := &mockSession{id: 1002, udpReady: true}
+	sender := &mockSession{id: 1003, udpReady: true} // 발신자(제외 대상)
+	sessions := []base.ISession{m1, m2, sender}
+
+	s.BroadcastTo(sessions, "msg", 1003)
+
+	if packCount != 1 {
+		t.Fatalf("패킹은 1회여야 함(O(N²) 방지). got=%d", packCount)
+	}
+	if len(m1.sent) != 1 || len(m2.sent) != 1 {
+		t.Fatalf("수신자는 각 1회 받아야 함. m1=%d m2=%d", len(m1.sent), len(m2.sent))
+	}
+	if len(sender.sent) != 0 {
+		t.Fatalf("exceptID(발신자)는 제외되어야 함. got=%d", len(sender.sent))
+	}
+	if string(m1.sent[0]) != "PACKED" {
+		t.Fatalf("패킹된 동일 바이트를 받아야 함. got=%q", string(m1.sent[0]))
+	}
+}
+
 // TestTryBindUDP - 최초 바인딩/같은 주소 허용/다른 주소 거부 단위 검증
 func TestTryBindUDP(t *testing.T) {
 	sess := NewSession(nil, nil, 1)

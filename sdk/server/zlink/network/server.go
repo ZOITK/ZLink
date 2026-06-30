@@ -182,6 +182,34 @@ func (s *Server) BroadcastUDP(msg any) {
 	})
 }
 
+// BroadcastTo - 메시지를 '1회만' 패킹하여 주어진 세션들에게 raw 전송하는 브로드캐스트 원시(primitive)입니다.
+//
+// Send를 수신자마다 호출하면 매번 재직렬화되어 fan-out 시 O(N²) 인코딩이 발생합니다.
+// BroadcastTo는 패킹을 1회로 줄이고, 루프는 raw 전송만 수행합니다.
+//   - 헤더 sessionID는 0으로 패킹됩니다. 브로드캐스트는 수신자별 ID가 의미 없으며,
+//     발신자 식별은 메시지 바디에 두는 것이 원칙입니다. (클라이언트는 헤더 ID 0을 무시)
+//   - exceptID와 일치하는 세션은 제외합니다. (보통 발신자 본인)
+//   - 세션의 UDP 바인딩 여부에 따라 SendRawUDP/SendRaw로 자동 분기합니다.
+func (s *Server) BroadcastTo(sessions []base.ISession, msg any, exceptID uint32) {
+	if s.Protocol.Packer == nil {
+		return
+	}
+	data, err := s.Protocol.Packer(msg, true, 0) // 1회 패킹 (헤더 sessionID=0)
+	if err != nil {
+		return
+	}
+	for _, sess := range sessions {
+		if sess == nil || sess.ID() == exceptID {
+			continue
+		}
+		if sess.IsUDPReady() {
+			_ = sess.SendRawUDP(data)
+		} else {
+			_ = sess.SendRaw(data)
+		}
+	}
+}
+
 // NewServer - 새 서버 인스턴스 생성
 // tcpPort=0이면 TCP 서버 미생성, udpPort=0이면 UDP 서버 미생성
 func NewServer(tcpPort, udpPort int) *Server {
